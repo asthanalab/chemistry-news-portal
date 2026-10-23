@@ -120,7 +120,13 @@ export async function listSubmissions() {
   return rows.filter(r=>canReadRecord(r,session)).map(r=>recordForUser(r,session));
 }
 export async function saveSubmission(record) {
-  if(config.mode==='cloudflare')return (await portalRequest('submissions',{record:await uploadCloudImages(record)})).record;
+  if(config.mode==='cloudflare'){
+    try{
+      const saved=(await portalRequest('submissions',{record:await uploadCloudImages(record)})).record;
+      for(const key of uploadedImages.keys())if(key.startsWith(record.id+':')&&!record.images.some(i=>key===record.id+':'+i.id))uploadedImages.delete(key);
+      return saved;
+    }catch(error){for(const key of uploadedImages.keys())if(key.startsWith(record.id+':'))uploadedImages.delete(key);throw error;}
+  }
   if(config.mode==='server')return (await portalRequest('submissions',{record})).record;
   if(config.mode==='google')return (await googleRequest('save',{record})).record;
   await assertLocalOffice();
