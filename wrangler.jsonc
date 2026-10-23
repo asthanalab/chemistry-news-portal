@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chemistry-news-portal",
+  "main": "cloudflare/worker.mjs",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "durable_objects": { "bindings": [{ "name": "PORTAL", "class_name": "Newsroom" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Newsroom"] }],
+  "observability": { "enabled": false },
+  "vars": { "MAX_STORAGE_BYTES": "268435456", "MAX_RECORDS": "1000" }
+}

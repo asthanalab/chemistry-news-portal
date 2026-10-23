@@ -6,3 +6,6 @@ test-results/
 !.env.example
 exports/
 .local/
+.wrangler/
+.dev.vars*
+dist/

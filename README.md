@@ -1,6 +1,6 @@
 # Chemistry News Portal
 
-A private departmental news intake and review portal. Contributors need only their name and research group. **No Google account, subscription, paid API, or external database is required.** Office staff read submissions, view images, manage review status, and export Excel files inside the portal.
+A private departmental news intake and review portal. Contributors need only their name and research group. **Contributors need no account. The hosted version uses Cloudflare Workers Free, without a paid API or subscription.** Office staff read submissions, view images, manage review status, and export Excel files inside the portal.
 
 ## Run the local preview
 
@@ -10,7 +10,7 @@ With Node.js 20 or later:
 node server.mjs
 ```
 
-Open [the portal](http://127.0.0.1:4173), or double-click `start-preview.command` on this Mac. The server listens only on `127.0.0.1`; this preview is not accessible from other computers. Stop the server with Ctrl+C. There are no packages to install.
+Open [the portal](http://127.0.0.1:4173), or double-click `start-preview.command` on this Mac. The server listens only on `127.0.0.1`; this preview is not accessible from other computers. Stop the server with Ctrl+C. The Node-only preview needs no installed packages. Cloudflare deployment and its integration tests use development dependencies.
 
 ## Contributor workflow
 
@@ -27,7 +27,7 @@ Drafts are saved on the portal server. A signed, HttpOnly cookie identifies this
 
 Open **Office access** and enter the office password. The inbox supports searching, category/status filters, image viewing, private notes, status updates, archiving, and Excel/media downloads. **Refresh** retrieves new submissions without leaving the dashboard; navigating to the inbox also reloads it.
 
-The password is checked by the server using a unique salt and 600,000 PBKDF2-SHA256 iterations. Only a hash of the derived proof is stored. Office cookies are HttpOnly and SameSite=Strict. Sessions expire after 30 minutes; **Lock office** revokes access. Five failed password attempts pause login for five minutes. Server endpoints enforce permissions independently of the interface: contributors cannot read submitted records or attachments, even by guessing an identifier or changing their browser's role.
+The password is checked by the server using a unique salt and 600,000 PBKDF2-SHA256 iterations. Only a hash of the derived proof is stored. Office cookies are HttpOnly and SameSite=Strict. Sessions expire after 30 minutes; **Lock office** revokes access. Login attempts are rate limited (five per network address in a five-minute window on Cloudflare). Server endpoints enforce permissions independently of the interface: contributors cannot read submitted records or attachments, even by guessing an identifier or changing their browser's role.
 
 This checkout retains the previously configured office password. On a fresh local installation, the first office visit offers one-time password setup. `node configure-office-password.mjs` is an alternative that creates a password and displays it once; it does not replace an existing credential.
 
@@ -57,11 +57,29 @@ The earlier IndexedDB and Google adapters are retained as inactive legacy code f
 
 ## Hosting and cost
 
-The code can be kept on GitHub. A shared private inbox also needs a running server with persistent storage. **GitHub Pages cannot run this Node backend**; it is a static hosting service. [GitHub Pages documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
+Source code is public at [asthanalab/chemistry-news-portal](https://github.com/asthanalab/chemistry-news-portal). Private records, images, passwords, local previews, and backups must never be committed.
 
-The intended next step is an existing department-managed server with HTTPS and persistent private storage, if the department provides one at no additional charge. Before launch, configure its hostname/origin checks, secure cookies, abuse controls, backup/restore process, retention policy, and office access policy. The current server deliberately accepts only loopback addresses and must not be exposed unchanged.
+The hosted deployment uses a Cloudflare Worker for the interface and API on the same HTTPS origin, with a private SQLite Durable Object for records and image chunks. Contributor and office cookies are Secure, HttpOnly, and SameSite=Strict in production. Image requests enforce the same access rules as the inbox. Public first-time password setup is disabled; the administrator configures a password verifier as a Worker secret.
 
-There are no billing integrations, automatic upgrades, external paid dependencies, or usage-based charges in this package. No public deployment has been made. Availability and operating costs of future hosting cannot be guaranteed forever; no paid hosting should be enabled without the user's approval.
+Use **Workers Free** only. Do not add billing, upgrade to a paid plan, or enable paid resources. Free service quotas stop requests when exhausted; this app never purchases capacity. The app additionally caps stored content at 256 MB, record metadata at 16 MB, and records at 1,000. Images are limited to 10 MB each and 30 MB per submission. Orphaned uploads from interrupted forms can consume storage, so the office should monitor capacity. No background email, analytics, paid image service, or R2 bucket is configured.
+
+Cloudflare may change its plans in the future; this package cannot guarantee perpetual third-party hosting. Review [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [Durable Objects Free limits](https://developers.cloudflare.com/durable-objects/platform/pricing/) before enabling an account. GitHub Pages alone cannot run the private API; it may provide a redirect to the working portal.
+
+### Deploy in an existing Free account
+
+With Node.js 22 or later and pnpm 11:
+
+    pnpm install --frozen-lockfile
+    pnpm test
+    pnpm build
+    pnpm exec wrangler login --scopes account:read user:read workers_scripts:write
+    pnpm exec wrangler deploy
+
+Before sharing the link, configure the existing local office credential as the secret named OFFICE_CREDENTIAL using Wrangler's secret input. Its value is the JSON object in .local/office-password.json; never paste it into public source, an issue, a command-line argument, or a commit. The portal rejects API requests until that secret exists. Keep the same Worker name, Durable Object class, and object name for future updates to retain storage.
+
+For a Cloudflare-runtime preview, put that credential in an ignored .dev.vars file, run pnpm build, then pnpm preview:cloudflare. This uses separate local test storage and does not upload earlier records. Backups can be imported explicitly by the office once the hosted portal is configured; existing IDs are skipped. Image files transfer first, then metadata imports commit atomically. A failed metadata import can leave private, unreferenced image uploads.
+
+Password-change emails remain unavailable until an explicitly approved delivery service is configured. To rotate access without email, the account administrator replaces the credential secret; existing office sessions then become invalid.
 
 ## Files and checks
 
@@ -75,4 +93,6 @@ There are no billing integrations, automatic upgrades, external paid dependencie
 | `tests/` | Access controls, persistence, validation, concurrency, exports, and legacy regression checks |
 | `google-backend/` | Inactive earlier integration; not required or connected |
 
-Run `node --test tests/*.test.mjs`. Some integration tests open temporary loopback ports. Test records are synthetic and isolated from the preview's data. Tests do not send emails.
+Install development dependencies, then run pnpm test. Cloudflare tests use the actual local Workers runtime. Some integration tests open temporary loopback ports. Test records are synthetic and isolated from the preview's data. Tests do not send emails.
+
+The hosted API lives in cloudflare/worker.mjs, its bindings in wrangler.jsonc, and shared validation in record-validation.mjs. build-cloudflare.mjs prepares only public assets.

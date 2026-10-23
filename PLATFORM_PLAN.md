@@ -40,12 +40,14 @@ Excel exports contain category sheets and linked media metadata; publication she
 - Earlier browser preview records recoverable without deleting their original copies. Existing IDs are never overwritten during import.
 - No Google connection, billing integration, external fonts, analytics, CDN, or email transport.
 
-## Hosting and remaining launch work
+## Selected hosting
 
-Keep code on GitHub; keep private records, passwords, and signing keys out of the repository. GitHub Pages is static hosting and cannot run the private server. Use an existing department-managed server with HTTPS and persistent storage only if available at no additional charge. The current preview stays on localhost until a suitable hosting destination is selected and reviewed.
+Public source: GitHub repository asthanalab/chemistry-news-portal. Working portal: Cloudflare Workers Free, serving the form and API from one HTTPS address. A SQLite Durable Object holds private records, session state, and image chunks. There is no Google account requirement, paid image storage, billing integration, or automatic upgrade.
 
-Before public use: configure the actual hostname and origin policy, HTTPS and secure cookies, request/rate and storage controls, administrator-controlled first setup, office credential policy, backups, retention, and a recovery test. A shared office password identifies the office role but not individual reviewers. Confirm whether named staff accounts are needed before deployment.
+The Cloudflare implementation includes same-origin write checks, secure cookies, office password verification through a private Worker secret, 30-minute office sessions, server-side permission checks, upload and login throttling, binary image uploads, version-conflict protection, atomic metadata imports, and capacity limits. Public password setup is disabled. Local Node preview data is separate and is not uploaded as part of deployment.
 
-Password-change email to the designated administrator was requested earlier, but no email transport is configured. Keep this explicitly unavailable until an approved free delivery arrangement exists. Do not send any other emails without permission. Do not promise perpetual free third-party hosting or create billing accounts.
+Only the office can read submitted items and images. Excel and media exports remain office downloads. No action publishes a submission or sends an email. Shared credentials identify the office role, not individual staff members.
 
-The local preview must be reviewed before deployment. No hosting account, cloud resource, repository publication, or email has been created by this update.
+Use the provider's Free plan without adding billing. If free quotas or the application's 256 MB / 1,000-record limit are reached, writes fail without a paid upgrade. Third-party plan terms cannot be guaranteed forever. Back up regularly; no automatic record deletion is enabled. Removed images are deleted only when the corresponding edit is saved. Interrupted uploads can leave unreferenced private bytes.
+
+The earlier request for administrator-only password recovery email remains pending because no delivery service is connected. The interface explains this instead of claiming an email was sent.

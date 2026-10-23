@@ -4,6 +4,17 @@
   "private": true,
   "type": "module",
   "description": "A no-subscription departmental news submission and review workspace.",
-  "scripts": { "start": "node server.mjs", "test": "node --test tests/*.test.mjs" },
-  "engines": { "node": ">=20" }
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node build-cloudflare.mjs",
+    "preview:cloudflare": "wrangler dev --port 4174",
+    "deploy": "node build-cloudflare.mjs && wrangler deploy"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  }
 }
