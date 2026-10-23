@@ -1,5 +1,7 @@
 # Chemistry News Portal
 
+[Open the live portal](https://chemistry-news-portal.chemistry-newsroom.workers.dev/) · [GitHub entry link](https://asthanalab.github.io/chemistry-news-portal/)
+
 A private departmental news intake and review portal. Contributors need only their name and research group. **Contributors need no account. The hosted version uses Cloudflare Workers Free, without a paid API or subscription.** Office staff read submissions, view images, manage review status, and export Excel files inside the portal.
 
 ## Run the local preview
@@ -63,7 +65,7 @@ The hosted deployment uses a Cloudflare Worker for the interface and API on the 
 
 Use **Workers Free** only. Do not add billing, upgrade to a paid plan, or enable paid resources. Free service quotas stop requests when exhausted; this app never purchases capacity. The app additionally caps stored content at 256 MB, record metadata at 16 MB, and records at 1,000. Images are limited to 10 MB each and 30 MB per submission. Orphaned uploads from interrupted forms can consume storage, so the office should monitor capacity. No background email, analytics, paid image service, or R2 bucket is configured.
 
-Cloudflare may change its plans in the future; this package cannot guarantee perpetual third-party hosting. Review [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [Durable Objects Free limits](https://developers.cloudflare.com/durable-objects/platform/pricing/) before enabling an account. GitHub Pages alone cannot run the private API; it may provide a redirect to the working portal.
+Cloudflare may change its plans in the future; this package cannot guarantee perpetual third-party hosting. Review [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [Durable Objects Free limits](https://developers.cloudflare.com/durable-objects/platform/pricing/) before enabling an account. GitHub Pages provides the public entry link and redirects to the working HTTPS portal. The form and private API share the Cloudflare origin so cookies and images remain protected.
 
 ### Deploy in an existing Free account
 
