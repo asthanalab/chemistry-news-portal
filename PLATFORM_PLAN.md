@@ -1,6 +1,6 @@
 # Chemistry News Portal — current implementation plan
 
-Updated October 23, 2026. This replaces the earlier Google/Supabase proposals.
+Updated October 27, 2026. This replaces the earlier Google/Supabase proposals. See [PROJECT_NOTES.md](PROJECT_NOTES.md) for the current implementation status and handoff. The live header is UND Department of Chemistry.
 
 ## Purpose and access
 
@@ -51,3 +51,13 @@ Only the office can read submitted items and images. Excel and media exports rem
 Use the provider's Free plan without adding billing. If free quotas or the application's 256 MB / 1,000-record limit are reached, writes fail without a paid upgrade. Third-party plan terms cannot be guaranteed forever. Back up regularly; no automatic record deletion is enabled. Removed images are deleted only when the corresponding edit is saved. Interrupted uploads can leave unreferenced private bytes.
 
 The earlier request for administrator-only password recovery email remains pending because no delivery service is connected. The interface explains this instead of claiming an email was sent.
+
+## Selected Microsoft integration — pending
+
+Use the UND Microsoft mailbox for administrator notifications and password reset, with `ayush.asthana@und.edu` as the initial administrator. Add a verified office setting to change that address later. Use a separate private UND OneDrive backup folder, visible within the university OneDrive folder on the administrator's computer when synced. This supersedes the Gmail/Google Drive backup proposal and does not add a contributor sign-in requirement.
+
+The requested storage rule is to begin backup at the configured content ceiling minus a 50 MB safety margin, notify the administrator, and reclaim verified backed-up data so new submissions can be added. The current ceiling is 256 MiB; using the existing binary-unit convention gives a proposed 206 MiB trigger. Separate record-count and metadata caps also need monitoring. Do not raise provider limits or enable billing as part of this rule.
+
+Automatic cleanup must wait for a complete, independently verified, recoverable backup. Preserve records edited after the snapshot and active unfinished drafts. On any backup, verification, or notification failure, retain live data. The backup should contain all text, images, office notes, originals, and history; the email should provide a private link rather than an oversized attachment. See [the detailed safeguards](PROJECT_NOTES.md#storage-rollover-design-requirements).
+
+University Microsoft sign-in completed on October 27, but App registrations → New registration returned “You do not have access” (401). UND/NDUS IT must confirm registration access or arrange the registration. See [MICROSOFT_SETUP.md](MICROSOFT_SETUP.md). No portal Microsoft connection, backup folder, automatic email, administrator-email setting, hosted reset flow, or automatic cleanup has been implemented or activated. These features require isolated tests and a restore check before deployment. Use only the existing university service and free hosting; do not introduce a paid fallback.

@@ -4,6 +4,12 @@
 
 A private departmental news intake and review portal. Contributors need only their name and research group. **Contributors need no account. The hosted version uses Cloudflare Workers Free, without a paid API or subscription.** Office staff read submissions, view images, manage review status, and export Excel files inside the portal.
 
+## Project notes
+
+Start with [PROJECT_NOTES.md](PROJECT_NOTES.md) for current status, decisions, hosting locations, pending work, and the latest handoff. [PLATFORM_PLAN.md](PLATFORM_PLAN.md) describes the form and architecture; [VALIDATION.md](VALIDATION.md) preserves test and deployment evidence. [MICROSOFT_SETUP.md](MICROSOFT_SETUP.md) records the university app-registration blocker and proposed setup. [AGENTS.md](AGENTS.md) records instructions for keeping these notes current locally and on GitHub.
+
+The live header is **UND Department of Chemistry**. UND Microsoft email and a separate UND OneDrive backup folder are the selected next integration. Administrator-email changes, hosted password-reset email, and backup-before-cleanup automation are **pending, not active**. No additional paid service is authorized.
+
 ## Run the local preview
 
 With Node.js 20 or later:
@@ -33,7 +39,7 @@ The password is checked by the server using a unique salt and 600,000 PBKDF2-SHA
 
 This checkout retains the previously configured office password. On a fresh local installation, the first office visit offers one-time password setup. `node configure-office-password.mjs` is an alternative that creates a password and displays it once; it does not replace an existing credential.
 
-**Email is not connected.** No submission, review, or password-change email is sent by the built-in server. The password-change dialog explains that recovery email needs administrator setup. The earlier request for administrator-only recovery email remains pending; it is not a Google sign-in requirement for using the portal.
+**Email is not connected.** No submission, review, or password-change email is sent by the built-in server or hosted Cloudflare portal. The password-change dialog explains that recovery email needs administrator setup. The requested administrator address is `ayush.asthana@und.edu`, using UND Microsoft mail and OneDrive for the pending integration. Contributors will still need no account. See [project notes](PROJECT_NOTES.md) for setup status and the backup safeguards.
 
 ## Included
 
