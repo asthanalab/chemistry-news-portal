@@ -57,6 +57,7 @@ export async function createPortalStore({directory,officeAuth,now=Date.now,maxSt
   async function save(input,actor){
     return serialized(async()=>{
       const old=records.find(r=>r.id===input?.id);
+      if(!old&&input?.version)throw fail('This news item was removed. Reload before continuing.',409);
       if(old&&!canReadRecord(old,actor))throw fail('This submission is not available.',404);
       if(old&&Number(input.version)!==old.version)throw fail('This submission was updated elsewhere. Reload before editing it again.',409);
       const row=validatePortalRecord(input,old),office=actor.role==='editor';
@@ -107,6 +108,16 @@ export async function createPortalStore({directory,officeAuth,now=Date.now,maxSt
       if(!actor.sub)throw fail('Your browser session has expired. Reload the portal to continue.',401);
       if(path==='/api/submissions'&&req.method==='GET'){response(res,200,{ok:true,records:records.filter(r=>canReadRecord(r,actor)).map(r=>metadata(recordForUser(r,actor)))});return true;}
       if(path==='/api/submissions'&&req.method==='POST'){response(res,200,{ok:true,record:await save((await body(req)).record,actor)});return true;}
+      const deletion=path.match(/^\/api\/records\/([a-zA-Z0-9_-]{1,100})\/delete$/);
+      if(deletion&&req.method==='POST'){
+        if(actor.role!=='editor')throw fail('Only the office can delete news.',403);
+        const input=await body(req,2048);
+        await serialized(async()=>{
+          const row=records.find(r=>r.id===deletion[1]);if(!row)throw fail('This news item is not available.',404);
+          if(row.version!==input.version)throw fail('This news item changed. Reload and review it before deleting.',409);
+          await commit(records.filter(r=>r.id!==row.id));
+        });response(res,200,{ok:true,deleted:true});return true;
+      }
       if(path.startsWith('/api/records/')&&req.method==='GET'){
         const row=records.find(r=>r.id===path.slice('/api/records/'.length));
         if(!row||!canReadRecord(row,actor))throw fail('This submission is not available.',404);

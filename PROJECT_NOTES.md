@@ -23,8 +23,8 @@ The repository belongs to **asthanalab**. A separately connected GitHub account 
 - [PLATFORM_PLAN.md](PLATFORM_PLAN.md): form fields, outputs, architecture, and pending work.
 - [VALIDATION.md](VALIDATION.md): historical test and deployment evidence, with current status at the top.
 - [AGENTS.md](AGENTS.md): instructions to keep these notes current and preserve the project's constraints.
-- [MICROSOFT_SETUP.md](MICROSOFT_SETUP.md): verified setup blocker and proposed UND/NDUS IT handoff; no email has been sent.
-- [google-backend/SETUP.md](google-backend/SETUP.md): historical Google integration only; it is not the selected hosting or backup plan.
+- [MICROSOFT_SETUP.md](MICROSOFT_SETUP.md): historical, superseded Microsoft setup blocker; no email was sent.
+- [google-automation/SETUP.md](google-automation/SETUP.md): current Drive-only backup setup and recovery instructions. The older google-backend directory is inactive historical code.
 
 ## Working and deployed
 
@@ -35,40 +35,44 @@ The repository belongs to **asthanalab**. A separately connected GitHub account 
 - Category-specific forms, multiple publications in one submission, optional images, release preferences, and a submission receipt.
 - Each publication has Comments to the office and More information fields. Office comments stay out of editorial-copy exports.
 - Submitted records and images are private to the password-protected office. Contributors can reopen only their own unfinished drafts from the same browser.
-- The office reviews, searches, edits, archives, and exports records within the portal. Excel, media ZIPs, and complete JSON backups are available as downloads.
+- The office reviews, searches, edits, deletes individual news items with confirmation, archives, and exports records within the portal. Excel, media ZIPs, and complete JSON backups are available as downloads.
 - Password verification, failed-login throttling, 30-minute office sessions, server-side access checks, version conflicts, and bounded uploads are implemented.
 - Cloudflare Workers Free hosts the live portal. Local preview data is separate and has not been automatically uploaded to production.
 
-## Selected next work — not yet active
+## Current backup choice and setup status
 
-The latest account choice is **UND Microsoft 365**, replacing the earlier Gmail/Google Drive proposal.
+The latest explicit choice is **private Google Drive backups with no Gmail access and no email-sending permission**, replacing both Microsoft and earlier Google email proposals. The user approved the reduced Drive-only permissions on October 27. Gmail ownership means the Google account owns the Drive folder; backups are not emails.
 
-| Requirement | Intended behavior | Current status |
-| --- | --- | --- |
-| Main administrator | `ayush.asthana@und.edu` receives administrative messages and password-reset links | Requested; not configured in the hosted application |
-| Sending account | Use the UND Microsoft mailbox for the authorized administrative emails | Not connected |
-| Private backup destination | A separate UND OneDrive folder named **UND Chemistry News Backups** | Not created or connected |
-| Local visibility | The backup folder appears within university OneDrive in Finder; keep downloaded if an offline copy is wanted | Active sync location still needs verification |
-| Change administrator later | Office settings provide a verified administrator-email change flow | Not implemented |
-| Password reset | Expiring, one-use links sent only to the configured administrator; completing a change invalidates existing office sessions | Not implemented for Cloudflare; current dialog accurately reports unavailable email |
-| Storage rollover | Start a verified backup when content reaches the configured storage ceiling minus 50 MB; notify administrator, then reclaim only safely backed-up live data | Not implemented; automatic cleanup is off |
+| Item | Current setting |
+| --- | --- |
+| Drive account | Existing Google account `ayushasthana15@gmail.com` |
+| Backup destination | Private **UND Chemistry News Backups** folder at My Drive root |
+| Email | Disabled entirely: no Gmail reading, no sending, no backup alerts, no password-reset emails |
+| Office password | Existing credential remains active; hosting administrator can rotate it without Gmail |
+| Schedule | Daily, approximately 9–10 a.m. America/Chicago, executed by Google servers |
+| Trigger | Portal content at or above 209 MB (209 MiB in the existing interface convention) |
+| Retention | Keep roughly the newest 50 MB of whole submitted news items, plus protected drafts and newer edits |
+| Connection status | Connected and enabled after a verified live backup and isolated restore on October 27 |
 
-Microsoft sign-in completed on October 27. Opening **App registrations → New registration** then returned **You do not have access** with error code 401. UND/NDUS IT needs to confirm access or arrange the registration; this account cannot currently complete that step. Do not treat a successful browser sign-in as authorization for the deployed portal. No Microsoft app permissions have been granted to the portal, and no automated email or backup has been activated. The [Microsoft setup handoff](MICROSOFT_SETUP.md) records the concrete blocker and proposed permissions.
+The portal-side implementation is deployed and the daily retention rule is enabled. The initial backup saved all four current records and two images; independent downloads matched the manifest, restored through the real local import path, preserved notes/history/image bytes, and skipped duplicate IDs on a second import. Office settings then enabled automatic cleanup. Current storage is about 538 KB, so no live news was removed. No email was sent.
 
-## Storage rollover design requirements
+## Backup and cleanup safeguards
 
-The existing application ceiling is **256 MiB** (`268435456` bytes), with a separate **1,000-record** cap and **16 MiB** record-metadata cap. The interface uses the label MB for binary units. If the requested safety margin uses the same convention, the proposed content trigger is **206 MiB** (`216006656` bytes). This is an application limit, not a claim about the provider's maximum allocation. Record count and metadata limits must also be considered.
+1. The Google script requests only per-file Drive access, external requests and its own trigger management. It uses neither GmailApp nor MailApp and has no public Google web-app endpoint.
+2. A 20-minute one-use office connection code establishes a private signing key. The key stays in Google Script Properties and private portal storage. Signed requests expire and cannot be replayed.
+3. Daily checks are silent. At 209 MB, snapshot every record and referenced image, including drafts, private office notes, original copy and history. Saved per-record JSON files are directly restorable through the existing import; a manifest records file IDs and checksums.
+4. Read each file back and compare SHA-256 checksums. Recheck file identities, parents, checksums and private folder access before acknowledging completion.
+5. Remove only unchanged non-draft snapshot records older than the newest retained 50 MB. Preserve drafts, changed/new records and newly pending images. Protected data can leave the portal above the retention target. Never use a lower file size as a reason to delete unverified data.
+6. If backup, verification, permission or quota fails, retain live records and report the issue in Office settings. Retry requires resolving the cause. Deleting or sharing the root folder stops cleanup; daily checks do not silently recreate it.
+7. Drive backups accumulate until the owner removes them. No automatic purchase or paid fallback is configured. Independent portal limits of 256 MB content, 1,000 records and 16 MB metadata still apply and stop writes when reached.
 
-Before enabling the rule:
+A first verification backup sends no email and deletes nothing. Large active jobs can use one-off continuation triggers to finish within Google’s runtime limits; the recurring storage check is still daily.
 
-1. Connect the approved UND mailbox and a private OneDrive folder using only the permissions required for this portal.
-2. Back up all required record content, images, private office notes, original copy, and history, with a manifest and integrity checks. Process large data in bounded pieces rather than loading the entire store at once.
-3. Verify the saved backup can be read and restored. Email a private backup link and summary instead of relying on oversized attachments.
-4. Reclaim only the exact versions and image bytes verified in the backup. Preserve new or edited records, active unfinished drafts, and material whose recoverability is uncertain. Define and document the cleanup scope before activating it.
-5. If backup, verification, or notification fails, retain live data and show an actionable office status. Email acceptance alone is not proof of delivery or proof of a valid backup.
-6. Test retries, interrupted jobs, duplicate notifications, changed records, expired Microsoft authorization, full OneDrive, and restore before enabling deletion.
+## New upload and office controls
 
-The built-in manual backup remains available while this work is pending. The current live portal does not automatically email, move, or delete submissions when storage fills; writes stop at capacity.
+- Every news image input enforces a 10 MB final per-file cap, including every publication in a multi-publication submission. The overall 30 MB submission image cap remains.
+- Supported JPG/PNG/WebP images above 10 MB and up to 50 MB are compressed on the contributor’s device. Lossless PNG is tried for figures; high-quality WebP and resizing are fallback options. The UI asks users to inspect readability. Files that cannot be reduced are rejected. Smaller originals remain unchanged.
+- Each office review has **Delete news item** with a confirmation naming that item. Deletion is permanent in the portal, checks its current version, and removes live attachments; existing backups are retained. Contributor access cannot call this operation.
 
 ## User decisions to preserve
 
@@ -77,8 +81,8 @@ The built-in manual backup remains available while this work is pending. The cur
 - Keep submissions and attachments private; a public source repository is not a public news feed.
 - Keep the simple design and account-free contributor workflow.
 - The office inbox is the main output; Excel is optional.
-- The requested automatic emails are limited to administrator storage/backup notifications and password reset. Do not send unrelated submission, review, or other emails without explicit permission.
-- Prefer UND mail and UND OneDrive for the pending integration. Do not silently substitute Gmail or Google Drive.
+- Latest instruction: no Gmail read permission and no email-sending permission. Do not send any portal emails, including backups or password resets.
+- Use private Google Drive backups under the existing Google account. Keep the root folder visible at the top of My Drive. Microsoft/OneDrive and email plans are superseded.
 - Keep project decisions, setup notes, validation, and remaining work in this folder and GitHub. Never publish passwords, password verifiers, OAuth tokens, session cookies, private submissions, backups, or sign-in screenshots.
 
 ## Deployment and verification record
@@ -90,12 +94,18 @@ The built-in manual backup remains available while this work is pending. The cur
 
 For deployment, retain Worker name `chemistry-news-portal`, Durable Object class `Newsroom`, and object name `department-news` to preserve the existing store. Runtime credentials belong in private Worker secrets or ignored local files. Public source updates and Cloudflare deployments are separate actions; a GitHub documentation commit does not deploy application code.
 
-## Microsoft implementation references
+## Current implementation references
 
-These references support the proposed design; they are not evidence of an active connection:
+- [Google per-file Drive access](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)
+- [Google Apps Script quotas](https://developers.google.com/apps-script/guides/services/quotas)
+- [Advanced Drive service](https://developers.google.com/apps-script/advanced/drive)
 
-- [OneDrive application folders](https://learn.microsoft.com/en-us/graph/onedrive-sharepoint-appfolder): an application folder can restrict file access and appears under `Apps/{application name}`. Confirm its actual path and sync behavior during setup.
-- [Microsoft Graph sendMail](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0): delegated mail sending; an accepted request is not delivery confirmation.
-- [Register a Microsoft application](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app): application registration and redirect setup, subject to university permissions.
+A connector or browser sign-in does not supply a hosted runtime credential. The current script uses the account’s approved Drive-only authorization; no Google token is published or copied into portal source.
 
-A chat connector or an existing browser sign-in cannot supply reusable authorization to a hosted Worker. Use a supported Microsoft authorization flow and keep runtime credentials private.
+## October 27 upload, deletion and retention revision
+
+The current local full suite passed **55 tests** after removal of email access. Coverage includes disabled email endpoints, exact limited Google scopes, 209 MiB trigger, 50 MiB latest-news retention, verification-before-cleanup, draft/edit preservation, signed-request replay rejection, missing/corrupt backup handling, per-item delete permissions/version checks and 10 MiB server upload enforcement. Tests use isolated synthetic data and mocked Google services, not live emails or live deletions.
+
+A browser test compressed a 15,877,193-byte synthetic PNG to a displayed 4.4 MB WebP, submitted it to isolated local Cloudflare storage and opened its office review. The per-item delete confirmation named the correct item; it was cancelled. No live data was imported from that preview. The current production deployment is Cloudflare version `4573f7c7-4e78-4674-b35b-1a2f87dac970`.
+
+The Drive folder’s parent was confirmed to be the account’s My Drive root. The root folder, dated backup folder, four record files and manifest were all verified private, with only owner permissions. The initial backup completed on October 27 at 5:14 p.m. Central. The independent restore receipt is kept privately in ignored `.local/drive-restore-check/receipt.json`; private backups and screenshots are not published.

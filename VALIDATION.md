@@ -1,8 +1,19 @@
 # Validation history
 
-Current status as of October 27, 2026: the Cloudflare portal is live, the last completed full automated suite passed **38 tests** on October 23, and the UND department-label change was built and verified live on October 27. UND Microsoft email, OneDrive backups, hosted password recovery, and automatic storage cleanup are not configured or tested. See [PROJECT_NOTES.md](PROJECT_NOTES.md) for the current handoff.
+Current status as of October 27, 2026: the full local suite passed **55 tests**, and the upload/deletion/Drive-only retention implementation is deployed as Cloudflare version `4573f7c7-4e78-4674-b35b-1a2f87dac970`. Google Drive-only authorization, private root folder, verified initial backup and automatic-cleanup activation are complete. No Gmail access, email-sending scope, real email, or live deletion was used.
 
-The sections below preserve earlier development stages. Statements about browser-only storage, Google integration, or hosting not yet being deployed describe those stages, not the current deployment. No test result below should be read as proof of a live Microsoft connection.
+## October 27 current revision
+
+- Live Drive verification: all four current records and two images backed up. Independently downloaded files matched manifest SHA-256 checksums. The real local import restored all four records, private notes, history and exact image bytes into an isolated store; repeat import skipped duplicates. No live records were deleted.
+- Verified the backup folder is directly under My Drive and the root, dated folder and all five files have owner-only access. Automatic retention was enabled only after this verification.
+
+- All 55 isolated tests passed, including 209 MiB trigger / 50 MiB latest-news retention, immutable backup snapshots, draft/new-edit preservation, file verification failures, signed-request tampering/replay rejection, exact Google permission list, disabled email endpoints, office-only per-item delete and stale-version rejection.
+- Browser upload of a synthetic 15,877,193-byte PNG compressed to a displayed 4.4 MB WebP, with image preview, completed local submission and office review.
+- Delete confirmation identified the intended synthetic item; cancelled without deleting it. Automated isolated backend tests verify actual deletion and attachment access removal.
+- Public asset build succeeded. Deployment preserved the existing Worker, Durable Object and private records. Local test records were not uploaded.
+- Google project manifest contains only `drive.file`, `script.external_request`, and `script.scriptapp`. No Gmail, send-mail, user-email or whole-Drive scope. No public Google web app is needed.
+
+The sections below preserve historical stages, including inactive legacy Google email tests. They do not describe the current email policy or prove a live Google backup. See PROJECT_NOTES.md for the current status.
 
 ## First-version validation
 

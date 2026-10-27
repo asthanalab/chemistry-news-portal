@@ -8,7 +8,7 @@ A private departmental news intake and review portal. Contributors need only the
 
 Start with [PROJECT_NOTES.md](PROJECT_NOTES.md) for current status, decisions, hosting locations, pending work, and the latest handoff. [PLATFORM_PLAN.md](PLATFORM_PLAN.md) describes the form and architecture; [VALIDATION.md](VALIDATION.md) preserves test and deployment evidence. [MICROSOFT_SETUP.md](MICROSOFT_SETUP.md) records the university app-registration blocker and proposed setup. [AGENTS.md](AGENTS.md) records instructions for keeping these notes current locally and on GitHub.
 
-The live header is **UND Department of Chemistry**. UND Microsoft email and a separate UND OneDrive backup folder are the selected next integration. Administrator-email changes, hosted password-reset email, and backup-before-cleanup automation are **pending, not active**. No additional paid service is authorized.
+The live header is **UND Department of Chemistry**. Private Google Drive backups are selected, with **no Gmail or email-sending access**. The daily rule is enabled after a verified initial backup and isolated restore; see project notes for the live status. No paid service is authorized.
 
 ## Run the local preview
 
@@ -39,13 +39,15 @@ The password is checked by the server using a unique salt and 600,000 PBKDF2-SHA
 
 This checkout retains the previously configured office password. On a fresh local installation, the first office visit offers one-time password setup. `node configure-office-password.mjs` is an alternative that creates a password and displays it once; it does not replace an existing credential.
 
-**Email is not connected.** No submission, review, or password-change email is sent by the built-in server or hosted Cloudflare portal. The password-change dialog explains that recovery email needs administrator setup. The requested administrator address is `ayush.asthana@und.edu`, using UND Microsoft mail and OneDrive for the pending integration. Contributors will still need no account. See [project notes](PROJECT_NOTES.md) for setup status and the backup safeguards.
+**Email access is disabled by request.** The portal does not read Gmail or send any emails, including password resets. The existing office password continues to work. A hosting-account administrator can rotate the private credential without connecting an inbox. Google Drive backup authorization does not grant Gmail access.
+
+Each office review has a **Delete news item** control. It names the item and asks for confirmation before permanently deleting that news item and its live attachments. Existing downloaded/Drive backups are retained. Stale versions cannot delete a newer edit.
 
 ## Included
 
 - Publications, grants, student milestones, awards, presentations, outreach, media coverage, announcements, and other news.
 - Up to ten publications per submission, each with its own title, authors, venue, status, DOI/URL, abstract, optional date, comments to the office, and additional information.
-- Up to three JPEG, PNG, or WebP images per publication or other news item; 10 MB per image and 30 MB per submission. Captions, credits, alternative text, and permission status accompany images.
+- Up to three JPEG, PNG, or WebP images per publication or other news item; 10 MB per image and 30 MB per submission. Larger supported images up to 50 MB are compressed on the contributor’s device; the final file must be at most 10 MB. Captions, credits, alternative text, and permission status accompany images.
 - Private editorial notes, activity history, original copy, embargoes, and image-permission holds.
 - Genuine `.xlsx` workbooks, with one row per paper on the publication sheet and image metadata linked to the correct paper.
 - ZIP media packages containing images, workbook, and a readable story digest.
@@ -69,7 +71,7 @@ Source code is public at [asthanalab/chemistry-news-portal](https://github.com/a
 
 The hosted deployment uses a Cloudflare Worker for the interface and API on the same HTTPS origin, with a private SQLite Durable Object for records and image chunks. Contributor and office cookies are Secure, HttpOnly, and SameSite=Strict in production. Image requests enforce the same access rules as the inbox. Public first-time password setup is disabled; the administrator configures a password verifier as a Worker secret.
 
-Use **Workers Free** only. Do not add billing, upgrade to a paid plan, or enable paid resources. Free service quotas stop requests when exhausted; this app never purchases capacity. The app additionally caps stored content at 256 MB, record metadata at 16 MB, and records at 1,000. Images are limited to 10 MB each and 30 MB per submission. Orphaned uploads from interrupted forms can consume storage, so the office should monitor capacity. No background email, analytics, paid image service, or R2 bucket is configured.
+Use **Workers Free** only. Do not add billing, upgrade to a paid plan, or enable paid resources. Free service quotas stop requests when exhausted; this app never purchases capacity. The app additionally caps stored content at 256 MB, record metadata at 16 MB, and records at 1,000. Images are limited to 10 MB each and 30 MB per submission. Orphaned uploads from interrupted forms can consume storage, so the office should monitor capacity. No email permission, analytics, paid image service, or R2 bucket is configured. The optional private Drive backup script runs daily on Google’s servers, using only its own Drive files, external requests and trigger permissions.
 
 Cloudflare may change its plans in the future; this package cannot guarantee perpetual third-party hosting. Review [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [Durable Objects Free limits](https://developers.cloudflare.com/durable-objects/platform/pricing/) before enabling an account. GitHub Pages provides the public entry link and redirects to the working HTTPS portal. The form and private API share the Cloudflare origin so cookies and images remain protected.
 
@@ -87,7 +89,7 @@ Before sharing the link, configure the existing local office credential as the s
 
 For a Cloudflare-runtime preview, put that credential in an ignored .dev.vars file, run pnpm build, then pnpm preview:cloudflare. This uses separate local test storage and does not upload earlier records. Backups can be imported explicitly by the office once the hosted portal is configured; existing IDs are skipped. Image files transfer first, then metadata imports commit atomically. A failed metadata import can leave private, unreferenced image uploads.
 
-Password-change emails remain unavailable until an explicitly approved delivery service is configured. To rotate access without email, the account administrator replaces the credential secret; existing office sessions then become invalid.
+Email-based password recovery is disabled by request. To rotate access without email, the account administrator replaces the credential secret; existing office sessions then become invalid.
 
 ## Files and checks
 
@@ -99,8 +101,16 @@ Password-change emails remain unavailable until an explicitly approved delivery 
 | `office-auth.mjs` | Password verification, rate limiting, and office sessions |
 | `.local/` | Private runtime data; never publish or commit |
 | `tests/` | Access controls, persistence, validation, concurrency, exports, and legacy regression checks |
-| `google-backend/` | Inactive earlier integration; not required or connected |
+| `google-backend/` | Historical inactive integration; do not deploy its email features |
+| `google-automation/` | Current Drive-only backup script and setup guide |
+| `cloudflare/automation.mjs` | Signed backup exchange, verification and latest-news retention |
 
 Install development dependencies, then run pnpm test. Cloudflare tests use the actual local Workers runtime. Some integration tests open temporary loopback ports. Test records are synthetic and isolated from the preview's data. Tests do not send emails.
 
 The hosted API lives in cloudflare/worker.mjs, its bindings in wrangler.jsonc, and shared validation in record-validation.mjs. build-cloudflare.mjs prepares only public assets.
+
+## Private Drive backups
+
+See [google-automation/SETUP.md](google-automation/SETUP.md). The private folder **UND Chemistry News Backups** belongs at the top level of My Drive. The current policy is a silent daily check around 9–10 a.m. Central. At **209 MB**, create and verify a full backup, then remove older unchanged submissions while retaining roughly the latest **50 MB** of whole news items. Drafts, new edits and pending uploads are additionally protected. No data is emailed.
+
+The interface labels binary MiB as MB, consistent with its existing upload/storage limits. The retention target can be exceeded by protected drafts or newer edits. The independent 1,000-record and 16 MB metadata caps still stop writes if reached first. A failed or missing backup destination stops cleanup. Backups accumulate in Drive; the script never purchases storage or deletes Drive backups. Deleting the root folder does not cause silent recreation during daily checks.

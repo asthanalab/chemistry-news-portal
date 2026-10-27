@@ -1,6 +1,6 @@
 # Chemistry News Portal — current implementation plan
 
-Updated October 27, 2026. This replaces the earlier Google/Supabase proposals. See [PROJECT_NOTES.md](PROJECT_NOTES.md) for the current implementation status and handoff. The live header is UND Department of Chemistry.
+Updated October 27, 2026. This supersedes earlier Microsoft-mail and Google-mail proposals. See [PROJECT_NOTES.md](PROJECT_NOTES.md) for the current implementation status and handoff. The live header is UND Department of Chemistry.
 
 ## Purpose and access
 
@@ -22,11 +22,11 @@ The four steps are news type/contact details; story details; images/release pref
 | Announcements | Type, people; optional location, time, registration link |
 | Other | People involved and additional details |
 
-Images are optional: JPEG/PNG/WebP, up to three per paper or other news item, 10 MB each and 30 MB total per submission. Caption, credit, alternative text, and permission status accompany each image. Server validation checks actual bytes and limits.
+Images are optional: JPEG/PNG/WebP, up to three per paper or other news item, 10 MB each and 30 MB total per submission. Caption, credit, alternative text, and permission status accompany each image. Larger images up to 50 MB are resized/compressed locally when possible; the final upload remains capped at 10 MB. Server validation checks actual bytes and limits.
 
 ## Outputs and review
 
-The private office inbox is the primary output. It provides search, category/status filters, a refresh control, complete story/image previews, private notes, review history, and an archive. Submitted → In review → Approved → Published → Archived is the editorial workflow; Changes requested records the need for office follow-up. No action publishes to an external website or emails anyone.
+The private office inbox is the primary output. It provides search, category/status filters, a refresh control, complete story/image previews, private notes, review history, an archive, and a confirmed per-item permanent delete control. Submitted → In review → Approved → Published → Archived is the editorial workflow; Changes requested records the need for office follow-up. No action publishes to an external website or emails anyone.
 
 Excel exports contain category sheets and linked media metadata; publication sheets use one row per paper. ZIP packages add the images and a readable digest. Internal exports retain office notes. Editorial-copy exports omit private notes, office comments, and restricted grant amounts, and honor embargoes and image permissions. A complete JSON backup preserves records and images for recovery.
 
@@ -48,16 +48,16 @@ The Cloudflare implementation includes same-origin write checks, secure cookies,
 
 Only the office can read submitted items and images. Excel and media exports remain office downloads. No action publishes a submission or sends an email. Shared credentials identify the office role, not individual staff members.
 
-Use the provider's Free plan without adding billing. If free quotas or the application's 256 MB / 1,000-record limit are reached, writes fail without a paid upgrade. Third-party plan terms cannot be guaranteed forever. Back up regularly; no automatic record deletion is enabled. Removed images are deleted only when the corresponding edit is saved. Interrupted uploads can leave unreferenced private bytes.
+Use the provider's Free plan without adding billing. If free quotas or the application's 256 MB / 1,000-record limit are reached, writes fail without a paid upgrade. Third-party plan terms cannot be guaranteed forever. The Drive retention rule runs only after verified backup and retains the newest news as described below. Removed images are deleted only when the corresponding edit is saved. Interrupted uploads can leave unreferenced private bytes.
 
-The earlier request for administrator-only password recovery email remains pending because no delivery service is connected. The interface explains this instead of claiming an email was sent.
+The user explicitly disabled all Gmail and email-sending access. Email-based password recovery is disabled; account administrators can rotate the private credential through hosting tools.
 
-## Selected Microsoft integration — pending
+## Selected Google Drive integration
 
-Use the UND Microsoft mailbox for administrator notifications and password reset, with `ayush.asthana@und.edu` as the initial administrator. Add a verified office setting to change that address later. Use a separate private UND OneDrive backup folder, visible within the university OneDrive folder on the administrator's computer when synced. This supersedes the Gmail/Google Drive backup proposal and does not add a contributor sign-in requirement.
+Use a private **UND Chemistry News Backups** folder at My Drive root under the existing Google account. No Gmail read or send permission, no email notifications, and no public Google web app are needed. The Google script only accesses files it creates, contacts this portal through signed requests, and runs its own time-based triggers. Contributors still need no account.
 
-The requested storage rule is to begin backup at the configured content ceiling minus a 50 MB safety margin, notify the administrator, and reclaim verified backed-up data so new submissions can be added. The current ceiling is 256 MiB; using the existing binary-unit convention gives a proposed 206 MiB trigger. Separate record-count and metadata caps also need monitoring. Do not raise provider limits or enable billing as part of this rule.
+Daily checks run on Google servers around 9–10 a.m. Central. At 209 MB of portal content, make a verified snapshot of all records and images, including private notes and history. Read saved bytes back and verify SHA-256 checksums, then recheck the manifest and file identity before acknowledging completion. Keep roughly the newest 50 MB of whole submitted news items, sorted by submission/creation date, and remove only older unchanged non-draft snapshots. Preserve drafts, edits during backup, new records and pending uploads even if retained storage exceeds 50 MB.
 
-Automatic cleanup must wait for a complete, independently verified, recoverable backup. Preserve records edited after the snapshot and active unfinished drafts. On any backup, verification, or notification failure, retain live data. The backup should contain all text, images, office notes, originals, and history; the email should provide a private link rather than an oversized attachment. See [the detailed safeguards](PROJECT_NOTES.md#storage-rollover-design-requirements).
+The script creates per-record restorable JSON files plus a manifest in dated subfolders. Missing, shared, full or inaccessible Drive storage stops cleanup and reports an office-only error. No emails are sent. A removed root folder is not silently recreated by the daily check. No paid fallback is permitted.
 
-University Microsoft sign-in completed on October 27, but App registrations → New registration returned “You do not have access” (401). UND/NDUS IT must confirm registration access or arrange the registration. See [MICROSOFT_SETUP.md](MICROSOFT_SETUP.md). No portal Microsoft connection, backup folder, automatic email, administrator-email setting, hosted reset flow, or automatic cleanup has been implemented or activated. These features require isolated tests and a restore check before deployment. Use only the existing university service and free hosting; do not introduce a paid fallback.
+The implementation is tested, deployed and activated after a verified initial backup and isolated restore of all four current records and two images. See PROJECT_NOTES.md for the handoff. Microsoft registration was blocked and that approach is now historical.

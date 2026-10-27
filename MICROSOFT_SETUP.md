@@ -1,6 +1,6 @@
-# UND Microsoft email and OneDrive setup — pending
+# Historical UND Microsoft setup — superseded
 
-Updated: 2026-10-27. This is a setup handoff, not an active integration or a message sent to IT.
+Updated: 2026-10-27. The user subsequently chose private Google Drive backups with no Gmail or email-sending permission. Do not carry out the mail/OneDrive proposal below. It is retained only as a historical record; no email was sent to IT.
 
 ## Verified blocker
 
