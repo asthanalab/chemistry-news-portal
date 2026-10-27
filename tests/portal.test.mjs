@@ -14,6 +14,19 @@ const proof=await passwordProof(password,credential);
 const pixel='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8xsAAAAASUVORK5CYII=';
 const record=(changes={})=>({...emptySubmission(),headline:'Fictional chemistry result',summary:'A test submission.',submitter:'Example Student',group:'Example Group',newsDate:'2026-10-23',details:{paperTitle:'Fictional paper',authors:'Example Student',venue:'Example Journal',publicationStatus:'Accepted',officeComments:'Private office comment'},images:[{id:'figure',type:'image/png',name:'test.png',dataUrl:pixel,caption:'Test figure',credit:'Example',alt:'Test image',rights:'cleared'}],permission:true,...changes});
 
+test('local office can delete exactly one current-version news item; contributors cannot',async t=>{
+  const api=await setup(t),a=await api.client();
+  const one=(await a.call('submissions',{record:record()})).data.record;
+  const two=(await a.call('submissions',{record:record()})).data.record;
+  assert.equal((await a.call('records/'+one.id+'/delete',{version:one.version})).status,403);
+  assert.equal((await api.office.call('records/'+one.id+'/delete',{version:0})).status,409);
+  assert.equal((await api.office.call('records/'+one.id+'/delete',{version:one.version})).status,200);
+  await api.restart();
+  assert.equal((await api.office.call('records/'+one.id)).status,404);
+  assert.equal((await api.office.call('records/'+two.id)).status,200);
+  assert.equal((await api.office.call('submissions',{record:one})).status,409);
+});
+
 async function setup(t,options={}){
   const directory=await mkdtemp(join(tmpdir(),'newsroom-portal-test-'));
   await writeCredential(join(directory,'password.json'),credential);

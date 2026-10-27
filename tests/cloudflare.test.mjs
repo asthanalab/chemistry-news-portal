@@ -99,3 +99,34 @@ test('Cloudflare: larger images cross storage chunks and removals release their 
   assert.equal((await a.call('images/'+source.id+'/large')).status,404);
   assert.equal((await a.call('uploads/'+source.id+'/large',pixel,{type:'image/png'})).status,200);
 });
+
+test('Cloudflare: per-item delete is office-only, version checked, and removes image access',async t=>{
+  const {client}=await setup(t),a=await client(),office=await client(),source=record();
+  await a.call('uploads/'+source.id+'/figure',pixel,{type:'image/png'});
+  source.images=[{id:'figure',type:'image/png',name:'figure.png',caption:'Test',credit:'Test',alt:'Test',rights:'cleared'}];
+  const saved=(await a.call('submissions',{record:source})).data.record;
+  assert.equal((await a.call('records/'+source.id+'/delete',{version:saved.version})).status,403);
+  await office.call('office/unlock',{proof});
+  assert.equal((await office.call('records/'+source.id+'/delete',{version:0})).status,409);
+  assert.equal((await office.call('records/'+source.id+'/delete',{version:saved.version},{headers:{Origin:'https://evil.example'}})).status,403);
+  assert.equal((await office.call('records/'+source.id+'/delete',{version:saved.version})).status,200);
+  assert.equal((await office.call('records/'+source.id)).status,404);
+  assert.equal((await office.call('images/'+source.id+'/figure')).status,404);
+  assert.equal((await office.call('submissions',{record:saved})).status,409);
+});
+
+test('Cloudflare: every image upload enforces 10 MiB and admin machine endpoints fail closed',async t=>{
+  const {client}=await setup(t),a=await client();
+  const oversized=new Uint8Array(10*1048576+1);oversized.set(pixel);
+  assert.equal((await a.call('uploads/test/large',oversized,{type:'image/png'})).status,413);
+  assert.equal((await a.call('office/settings')).status,401);
+  assert.equal((await a.call('office/pair',{})).status,401);
+  assert.equal((await a.call('automation',{at:Date.now(),nonce:'a'.repeat(48),payload:'{}',signature:'f'.repeat(64)})).status,403);
+  assert.equal((await a.call('office/reset-request',{})).status,403);
+  await a.call('office/unlock',{proof});
+  assert.equal((await a.call('office/pair')).status,405);
+  const code=(await a.call('office/pair',{})).data.code;
+  assert.match(code,/^[a-f0-9]{48}$/);
+  assert.equal((await a.call('automation/pair',{code,sender:'test@example.com',folderId:'fake-folder-123',folderName:'UND Chemistry News Backups'})).status,200);
+  assert.equal((await a.call('automation/pair',{code,sender:'test@example.com',folderId:'fake-folder-123',folderName:'UND Chemistry News Backups'})).status,403);
+});
