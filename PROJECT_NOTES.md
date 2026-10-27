@@ -29,6 +29,7 @@ The repository belongs to **asthanalab**. A separately connected GitHub account 
 ## Working and deployed
 
 - The header says **UND Department of Chemistry**.
+- The live footer reads **Private departmental submissions. AI generate tool.** as requested. This is presentation wording; no AI service or email transport was added.
 - Plain white interface with Arial, ordinary navigation, and a centered Submit news link. No submission list, search, filters, or empty-inbox message on the home page.
 - Students, faculty, and staff can contribute using a name and research group, without an account or institution-name field.
 - Category-specific forms, multiple publications in one submission, optional images, release preferences, and a submission receipt.
@@ -85,6 +86,7 @@ The built-in manual backup remains available while this work is pending. The cur
 - 2026-10-23: live Cloudflare deployment and GitHub Pages redirect verified. The automated suite passed **38 tests**, including five tests in the local Cloudflare runtime. Live synthetic submission, image, office-only access, Excel export, and office locking were checked. The fictional deployment-check record was archived, not deleted. No real departmental submission was uploaded during deployment.
 - 2026-10-27: department label updated in GitHub commit `7b2bf9f87611e1b342cf851f7baac06a18dccc92` and deployed as Cloudflare version `da9fd252-77cd-4b08-8eb0-fffe18504c05`. Asset build, syntax, published file hash, and live header checked.
 - 2026-10-27: project notes consolidated; UND Microsoft/OneDrive preference and outstanding integration work recorded. University sign-in succeeded, but the app-registration page denied access (401). Documentation changes do not activate backup, email, or cleanup features.
+- 2026-10-27: footer changed to “Private departmental submissions. AI generate tool.” Syntax and asset build passed; GitHub source matched the local file, and the exact text was verified on the live portal. Cloudflare version: `c7e75de4-c093-485a-ac77-28409ef78daa`. Only `app.js` changed among deployed static assets.
 
 For deployment, retain Worker name `chemistry-news-portal`, Durable Object class `Newsroom`, and object name `department-news` to preserve the existing store. Runtime credentials belong in private Worker secrets or ignored local files. Public source updates and Cloudflare deployments are separate actions; a GitHub documentation commit does not deploy application code.
 
