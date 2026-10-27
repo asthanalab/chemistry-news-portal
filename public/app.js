@@ -159,7 +159,7 @@ async function passwordChangeDialog(){
 }
 async function forgotPasswordDialog(){
   const connected=config.mode==='cloudflare'&&(await officeChallenge()).recoveryConnected;
-  openDialog('Recover office access',connected?`<p>Continue with the approved administrator Google account, then choose a new office password. You do not need the old password.</p><p>No email is sent. The portal requests only your Google identity and email address, with no inbox or Drive access. <a href="privacy.html" target="_blank" rel="noopener noreferrer">Privacy details</a>.</p><button class="button primary" data-action="google-recovery">Continue with Google</button>`:`<p>Google recovery setup is not complete. Contact the hosting-account administrator for help.</p><p>No email has been sent.</p><button class="button secondary" data-action="close-dialog">Close</button>`);
+  openDialog('Recover office access',connected?`<p>Continue with the approved administrator Google account, then choose a new office password. You do not need the old password.</p><p><a href="privacy.html" target="_blank" rel="noopener noreferrer">Privacy details</a></p><button class="button primary" data-action="google-recovery">Continue with Google</button>`:`<p>Google recovery setup is not complete. Contact the hosting-account administrator for help.</p><p>No email has been sent.</p><button class="button secondary" data-action="close-dialog">Close</button>`);
 }
 function passwordChanged(){
   resetWorkspace();session.role='contributor';session.officeToken='';session.officeExpiresAt=0;clearTimeout(officeTimer);
