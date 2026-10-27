@@ -127,3 +127,9 @@ A dedicated **UND Chemistry Portal Recovery** Google project is configured under
 The final production deployment is `86224b8b-c4d5-4b7b-996a-080d40e176fd`. A live compatibility issue in the Google code exchange was fixed and covered by an actual Workers outbound-request regression test; redirects from the token endpoint are rejected. The private diagnostic reports successful verification. All four existing records remain present, and the separate Drive backup connection and daily rule remain enabled. No live records, password or email settings were changed.
 
 Publish this revision’s public source and notes together and verify their GitHub blob hashes. Credentials, private receipts, reset capabilities and account screenshots remain under ignored `.local/`; they are not part of the public update.
+
+## October 27 recovery-dialog wording
+
+Removed the requested identity/email/inbox/Drive explanatory sentence from the recovery dialog. The short recovery instructions, Privacy details link and Continue with Google button remain. This is a presentation-only change; it does not change permissions, recovery checks, email behavior or backup settings.
+
+JavaScript syntax and the production asset build passed. Deployment `3b120b2d-f2d1-416c-82a2-c46704d5f671` uploaded only the changed `app.js` asset. The live recovery dialog was opened and the sentence's absence verified. The previous 67-test security result is historical; that suite was not rerun for this wording-only change.

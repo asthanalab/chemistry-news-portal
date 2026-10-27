@@ -152,3 +152,9 @@ Replaced the footer suffix “No automatic emails.” with the exact requested t
 ## October 27 footer grammar correction
 
 Changed the live footer to “Private departmental submissions. AI generated tool.” Syntax and asset build passed; browser verification confirmed the exact text. Cloudflare version `39dec5ce-5d7c-4497-93ff-0fcbc6c5c4f3` changed only app.js among static assets. The full suite was not rerun for this wording-only edit. Evidence: test-results/live-footer-ai-generated-tool.png.
+
+## October 27 recovery-dialog wording
+
+Removed the requested identity/email/inbox/Drive explanatory sentence from the recovery dialog. The short recovery instructions, Privacy details link and Continue with Google button remain. This is a presentation-only change; it does not change permissions, recovery checks, email behavior or backup settings.
+
+JavaScript syntax and the production asset build passed. Deployment `3b120b2d-f2d1-416c-82a2-c46704d5f671` uploaded only the changed `app.js` asset. The live recovery dialog was opened and the sentence's absence verified. The previous 67-test security result is historical; that suite was not rerun for this wording-only change.
