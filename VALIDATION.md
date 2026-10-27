@@ -134,3 +134,7 @@ University Microsoft sign-in succeeded, but New registration returned “You do 
 ## Footer wording, 2026-10-27
 
 Replaced the footer suffix “No automatic emails.” with the exact requested text “AI generate tool.” The hosted footer now reads “Private departmental submissions. AI generate tool.” JavaScript syntax and the production asset build passed. The published public/app.js Git blob hash matched the local copy (`f0e6c22390e40a95e2477c1ae046b1ba3b79a979`). Cloudflare deployed version `c7e75de4-c093-485a-ac77-28409ef78daa`, updating only app.js among static assets. Browser verification confirmed the exact wording on the live home page. The change affects presentation only; no email or AI service was enabled. The full application suite was not rerun for this text-only change. Evidence: test-results/live-footer-ai-generate-tool.png.
+
+## October 27 footer grammar correction
+
+Changed the live footer to “Private departmental submissions. AI generated tool.” Syntax and asset build passed; browser verification confirmed the exact text. Cloudflare version `39dec5ce-5d7c-4497-93ff-0fcbc6c5c4f3` changed only app.js among static assets. The full suite was not rerun for this wording-only edit. Evidence: test-results/live-footer-ai-generated-tool.png.

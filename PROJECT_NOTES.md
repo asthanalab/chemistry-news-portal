@@ -29,7 +29,7 @@ The repository belongs to **asthanalab**. A separately connected GitHub account 
 ## Working and deployed
 
 - The header says **UND Department of Chemistry**.
-- The live footer reads **Private departmental submissions. AI generate tool.** as requested. This is presentation wording; no AI service or email transport was added.
+- The live footer reads **Private departmental submissions. AI generated tool.** as requested. This is presentation wording; no AI service or email transport was added.
 - Plain white interface with Arial, ordinary navigation, and a centered Submit news link. No submission list, search, filters, or empty-inbox message on the home page.
 - Students, faculty, and staff can contribute using a name and research group, without an account or institution-name field.
 - Category-specific forms, multiple publications in one submission, optional images, release preferences, and a submission receipt.
@@ -106,6 +106,10 @@ A connector or browser sign-in does not supply a hosted runtime credential. The 
 
 The current local full suite passed **55 tests** after removal of email access. Coverage includes disabled email endpoints, exact limited Google scopes, 209 MiB trigger, 50 MiB latest-news retention, verification-before-cleanup, draft/edit preservation, signed-request replay rejection, missing/corrupt backup handling, per-item delete permissions/version checks and 10 MiB server upload enforcement. Tests use isolated synthetic data and mocked Google services, not live emails or live deletions.
 
-A browser test compressed a 15,877,193-byte synthetic PNG to a displayed 4.4 MB WebP, submitted it to isolated local Cloudflare storage and opened its office review. The per-item delete confirmation named the correct item; it was cancelled. No live data was imported from that preview. The current production deployment is Cloudflare version `4573f7c7-4e78-4674-b35b-1a2f87dac970`.
+A browser test compressed a 15,877,193-byte synthetic PNG to a displayed 4.4 MB WebP, submitted it to isolated local Cloudflare storage and opened its office review. The per-item delete confirmation named the correct item; it was cancelled. No live data was imported from that preview. That revision was deployed as Cloudflare version `4573f7c7-4e78-4674-b35b-1a2f87dac970`.
 
 The Drive folder’s parent was confirmed to be the account’s My Drive root. The root folder, dated backup folder, four record files and manifest were all verified private, with only owner permissions. The initial backup completed on October 27 at 5:14 p.m. Central. The independent restore receipt is kept privately in ignored `.local/drive-restore-check/receipt.json`; private backups and screenshots are not published.
+
+## October 27 footer wording correction
+
+Corrected the footer to **Private departmental submissions. AI generated tool.** JavaScript syntax and the production asset build passed, and the exact wording was verified in the live browser. Current production deployment: `39dec5ce-5d7c-4497-93ff-0fcbc6c5c4f3`. Only the static app.js asset changed. The prior 55-test result remains historical; the full suite was not rerun for this text-only edit.
