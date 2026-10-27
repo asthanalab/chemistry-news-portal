@@ -2,6 +2,8 @@ import {validatePortalRecord,validImageBytes} from '../record-validation.mjs';
 import {canReadRecord,recordForUser} from '../public/access.js';
 import {releaseEligible} from '../public/model.js';
 import {Administration} from './automation.mjs';
+import {OfficeSecurity} from './security.mjs';
+import {GoogleRecovery} from './google-recovery.mjs';
 
 const MB=1024*1024, DAY=86400000, SESSION=1800000, CHUNK=512*1024;
 const idPattern=/^[a-zA-Z0-9_-]{1,100}$/;
@@ -39,6 +41,8 @@ export class Newsroom {
     this.sql.exec('CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, expires INTEGER, credential TEXT)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS rates (key TEXT PRIMARY KEY, count INTEGER, expires INTEGER)');
     this.admin=new Administration(this);
+    this.security=new OfficeSecurity(this);
+    this.googleRecovery=new GoogleRecovery(this);
     this.ctx.blockConcurrencyWhile(async()=>{
       let key=await ctx.storage.get('cookie-key');
       if(!key){key=random();await ctx.storage.put('cookie-key',key);}
@@ -48,18 +52,30 @@ export class Newsroom {
   one(query,...args){return this.sql.exec(query,...args).toArray()[0];}
   record(id){const row=this.one('SELECT data FROM records WHERE id=?',id);return row?JSON.parse(row.data):null;}
   async sign(value){return hex(await crypto.subtle.sign('HMAC',this.signingKey,encoder.encode(value)));}
-  credential(){
-    let c=this.admin.get('credential');if(!c)try{c=JSON.parse(this.env.OFFICE_CREDENTIAL);}catch{}
+  rootCredential(){
+    let c;try{c=JSON.parse(this.env.OFFICE_CREDENTIAL);}catch{}
     if(!c||!/^[a-f0-9]{48}$/.test(c.salt)||c.iterations!==600000||!/^[a-f0-9]{64}$/.test(c.verifier))throw fail('The portal administrator is completing setup. Please try again later.',503);
     return c;
+  }
+  credential(){
+    const root=this.rootCredential(),changed=this.admin.get('credential');
+    // Rotating the hosting secret remains a recovery path after an in-app change.
+    return changed?.rootVerifier===root.verifier?changed:root;
+  }
+  activeOffice(actor){
+    if(!actor.sessionKey)return false;
+    const s=this.one('SELECT expires,credential FROM sessions WHERE token=?',actor.sessionKey);
+    return !!(s&&s.expires>Date.now()&&s.credential===this.credential().verifier);
   }
   async actor(req,c){
     const token=cookie(req,'newsroom_contributor'),[sub,expiry,signature]=token.split('.');
     const valid=/^[a-f0-9]{48}$/.test(sub||'')&&Number(expiry)>Date.now()&&equal(signature,await this.sign(sub+'.'+expiry));
     const officeToken=cookie(req,'newsroom_office');
-    const session=/^[a-f0-9]{48}$/.test(officeToken)?this.one('SELECT expires,credential FROM sessions WHERE token=?',await digest(officeToken)):null;
+    const sessionKey=/^[a-f0-9]{48}$/.test(officeToken)?await digest(officeToken):'';
+    const session=sessionKey?this.one('SELECT expires,credential FROM sessions WHERE token=?',sessionKey):null;
     const office=session&&session.expires>Date.now()&&equal(session.credential,c.verifier);
-    return {sub:valid?sub:'',role:office?'editor':'contributor',officeExpiresAt:office?session.expires:0};
+    const actor={sub:valid?sub:'',role:office?'editor':'contributor',officeExpiresAt:office?session.expires:0};
+    Object.defineProperty(actor,'sessionKey',{value:office?sessionKey:''});return actor;
   }
   rate(key,limit,window){
     const now=Date.now(),old=this.one('SELECT count,expires FROM rates WHERE key=?',key);
@@ -85,6 +101,7 @@ export class Newsroom {
   }
   save(source,actor){
     return this.ctx.storage.transactionSync(()=>{
+      if(actor.role==='editor'&&!this.activeOffice(actor))throw fail('Office access has expired.',401);
       const old=this.record(String(source?.id||''));
       if(!old&&source?.version)throw fail('This news item was removed. Reload before continuing.',409);
       if(old&&!canReadRecord(old,actor))throw fail('This submission is not available.',404);
@@ -114,6 +131,7 @@ export class Newsroom {
   }
   deleteRecord(id,version,actor){
     if(actor.role!=='editor')throw fail('Only the office can delete news.',403);
+    if(!this.activeOffice(actor))throw fail('Office access has expired.',401);
     return this.ctx.storage.transactionSync(()=>{
       const row=this.record(id);if(!row)throw fail('This news item is not available.',404);
       if(row.version!==version)throw fail('This news item changed. Reload and review it before deleting.',409);
@@ -124,6 +142,7 @@ export class Newsroom {
   }
   importRecords(sources,actor){
     if(actor.role!=='editor')throw fail('Only the office can import records.',403);
+    if(!this.activeOffice(actor))throw fail('Office access has expired.',401);
     if(!Array.isArray(sources)||sources.length>1000)throw fail('Import up to 1,000 records.');
     return this.ctx.storage.transactionSync(()=>{
       let count=0;
@@ -141,6 +160,7 @@ export class Newsroom {
   async upload(req,recordId,imageId,actor,ip){
     if(!idPattern.test(recordId)||!idPattern.test(imageId))throw fail('Invalid image identifier.');
     const authorize=()=>{
+      if(actor.role==='editor'&&!this.activeOffice(actor))throw fail('Office access has expired.',401);
       const row=this.record(recordId),existing=this.one('SELECT * FROM images WHERE record_id=? AND image_id=?',recordId,imageId);
       if(row&&!canReadRecord(row,actor)||existing&&actor.role!=='editor'&&existing.owner!==actor.sub)throw fail('This submission is not available.',404);
       return existing;
@@ -182,17 +202,28 @@ export class Newsroom {
         this.rate('pair:global',10,300000);return json(await this.admin.pair(await input(req,4096)));
       }
       if(path==='/api/automation'&&req.method==='POST')return json(await this.admin.automation(await this.admin.authenticate(await input(req,256*1024))));
+      if(path==='/api/office/google-callback'&&req.method==='GET'){
+        let destination;
+        try{destination=await this.googleRecovery.callback(req);}
+        catch{destination=(this.googleRecovery.config()?.origin||url.origin)+'/#office-recovery-error';}
+        return new Response(null,{status:303,headers:{Location:destination,'Set-Cookie':this.googleRecovery.cookie('',0),'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
+      }
       if(req.headers.get('Sec-Fetch-Site')==='cross-site'||req.method!=='GET'&&req.headers.get('Origin')!==url.origin)throw fail('Open the portal from its own address.',403);
       if(!['GET','POST'].includes(req.method))throw fail('Method not allowed.',405);
       const credential=this.credential(),actor=await this.actor(req,credential);
       // A keyed digest avoids retaining contributors' raw IP addresses.
       const ip=await this.sign(req.headers.get('CF-Connecting-IP')||'local');
-      if(path==='/api/office/challenge'&&req.method==='GET')return json({configured:true,salt:credential.salt,iterations:credential.iterations,recoveryConnected:false});
+      if(actor.role==='editor'&&!this.activeOffice(actor))throw fail('Office access has expired.',401);
+      if(path==='/api/office/challenge'&&req.method==='GET')return json({configured:true,salt:credential.salt,iterations:credential.iterations,recoveryConnected:this.googleRecovery.configured()});
       if(path==='/api/office/session'&&req.method==='GET')return json({unlocked:actor.role==='editor',expiresAt:actor.officeExpiresAt});
+      if(path==='/api/office/google-start'&&req.method==='POST'){
+        const result=await this.googleRecovery.start(ip);return json({url:result.url},200,{'Set-Cookie':result.cookie});
+      }
       if(path==='/api/office/unlock'&&req.method==='POST'){
         this.rate('login:'+ip,5,300000);this.rate('login:global',100,300000);
         const data=await input(req,2048);
         if(typeof data.proof!=='string'||!/^[a-f0-9]{64}$/.test(data.proof)||!equal(await digest(data.proof),credential.verifier))throw fail('Incorrect office password.',401);
+        if(credential.verifier!==this.credential().verifier)throw fail('The password changed. Please try again.',401);
         const token=random(),expiresAt=Date.now()+SESSION;
         this.sql.exec('INSERT INTO sessions VALUES(?,?,?)',await digest(token),expiresAt,credential.verifier);
         return json({unlocked:true,expiresAt},200,{'Set-Cookie':setCookie('newsroom_office',token,SESSION/1000,req)});
@@ -203,9 +234,17 @@ export class Newsroom {
       }
       if(path.startsWith('/api/office/')){
         const action=path.slice('/api/office/'.length);
+        if(['change-begin','change-complete','reset-request','reset-challenge','reset-complete'].includes(action)){
+          if(req.method!=='POST')throw fail('Method not allowed.',405);
+          const result=await this.security.action(action,await input(req,4096),actor,ip);
+          return json(result,200,result.changed?{'Set-Cookie':setCookie('newsroom_office','',0,req)}:{});
+        }
         if(!['settings','pair','reset-request','reset-challenge','reset-complete','change-email','confirm-email','backup-now','retry-backup','enable-backups'].includes(action))throw fail('This office action is not available.',404);
         if(req.method!==(action==='settings'?'GET':'POST'))throw fail('Method not allowed.',405);
-        return json(await this.admin.office(action,req.method==='POST'?await input(req,4096):{},actor,ip,url.origin));
+        const data=req.method==='POST'?await input(req,4096):{};
+        if(actor.role==='editor'&&!this.activeOffice(actor))throw fail('Office access has expired.',401);
+        const result=await this.admin.office(action,data,actor,ip,url.origin);
+        return json(action==='settings'?{...result,...this.googleRecovery.status()}:result);
       }
       if(path==='/api/session'&&req.method==='GET'){
         let header={};
