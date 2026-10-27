@@ -1,6 +1,7 @@
 import {validatePortalRecord,validImageBytes} from '../record-validation.mjs';
 import {canReadRecord,recordForUser} from '../public/access.js';
 import {releaseEligible} from '../public/model.js';
+import {Administration} from './automation.mjs';
 
 const MB=1024*1024, DAY=86400000, SESSION=1800000, CHUNK=512*1024;
 const idPattern=/^[a-zA-Z0-9_-]{1,100}$/;
@@ -37,6 +38,7 @@ export class Newsroom {
     this.sql.exec('CREATE TABLE IF NOT EXISTS chunks (record_id TEXT, image_id TEXT, part INTEGER, data BLOB, PRIMARY KEY(record_id,image_id,part))');
     this.sql.exec('CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, expires INTEGER, credential TEXT)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS rates (key TEXT PRIMARY KEY, count INTEGER, expires INTEGER)');
+    this.admin=new Administration(this);
     this.ctx.blockConcurrencyWhile(async()=>{
       let key=await ctx.storage.get('cookie-key');
       if(!key){key=random();await ctx.storage.put('cookie-key',key);}
@@ -47,7 +49,7 @@ export class Newsroom {
   record(id){const row=this.one('SELECT data FROM records WHERE id=?',id);return row?JSON.parse(row.data):null;}
   async sign(value){return hex(await crypto.subtle.sign('HMAC',this.signingKey,encoder.encode(value)));}
   credential(){
-    let c;try{c=JSON.parse(this.env.OFFICE_CREDENTIAL);}catch{}
+    let c=this.admin.get('credential');if(!c)try{c=JSON.parse(this.env.OFFICE_CREDENTIAL);}catch{}
     if(!c||!/^[a-f0-9]{48}$/.test(c.salt)||c.iterations!==600000||!/^[a-f0-9]{64}$/.test(c.verifier))throw fail('The portal administrator is completing setup. Please try again later.',503);
     return c;
   }
@@ -84,6 +86,7 @@ export class Newsroom {
   save(source,actor){
     return this.ctx.storage.transactionSync(()=>{
       const old=this.record(String(source?.id||''));
+      if(!old&&source?.version)throw fail('This news item was removed. Reload before continuing.',409);
       if(old&&!canReadRecord(old,actor))throw fail('This submission is not available.',404);
       if(old&&Number(source.version)!==old.version)throw fail('This submission was updated elsewhere. Reload before editing it again.',409);
       const row=validatePortalRecord(source,old,this.imageMap(String(source?.id||''),actor)),office=actor.role==='editor';
@@ -98,10 +101,25 @@ export class Newsroom {
       // A saved image removal also removes its private bytes. A failed save rolls
       // this back together with the record; unrelated pending uploads are retained.
       for(const removed of old?.images||[])if(!row.images.some(i=>i.id===removed.id)){
-        this.sql.exec('DELETE FROM chunks WHERE record_id=? AND image_id=?',row.id,removed.id);
-        this.sql.exec('DELETE FROM images WHERE record_id=? AND image_id=?',row.id,removed.id);
+        this.deleteImage(row.id,removed.id);
       }
       return recordForUser(row,actor);
+    });
+  }
+  deleteImage(recordId,imageId){
+    // An in-progress snapshot pins its bytes until verified completion.
+    if(this.admin.pin(recordId,imageId))return;
+    this.sql.exec('DELETE FROM chunks WHERE record_id=? AND image_id=?',recordId,imageId);
+    this.sql.exec('DELETE FROM images WHERE record_id=? AND image_id=?',recordId,imageId);
+  }
+  deleteRecord(id,version,actor){
+    if(actor.role!=='editor')throw fail('Only the office can delete news.',403);
+    return this.ctx.storage.transactionSync(()=>{
+      const row=this.record(id);if(!row)throw fail('This news item is not available.',404);
+      if(row.version!==version)throw fail('This news item changed. Reload and review it before deleting.',409);
+      this.sql.exec('DELETE FROM records WHERE id=?',id);
+      for(const image of this.sql.exec('SELECT image_id FROM images WHERE record_id=?',id).toArray())this.deleteImage(id,image.image_id);
+      return {deleted:true};
     });
   }
   importRecords(sources,actor){
@@ -158,12 +176,18 @@ export class Newsroom {
   async fetch(req){
     try{
       const url=new URL(req.url),path=url.pathname;
+      // These machine endpoints require a one-use pairing code or a signed,
+      // timestamped request. No browser cookie authorizes automation access.
+      if(path==='/api/automation/pair'&&req.method==='POST'){
+        this.rate('pair:global',10,300000);return json(await this.admin.pair(await input(req,4096)));
+      }
+      if(path==='/api/automation'&&req.method==='POST')return json(await this.admin.automation(await this.admin.authenticate(await input(req,256*1024))));
       if(req.headers.get('Sec-Fetch-Site')==='cross-site'||req.method!=='GET'&&req.headers.get('Origin')!==url.origin)throw fail('Open the portal from its own address.',403);
       if(!['GET','POST'].includes(req.method))throw fail('Method not allowed.',405);
       const credential=this.credential(),actor=await this.actor(req,credential);
       // A keyed digest avoids retaining contributors' raw IP addresses.
       const ip=await this.sign(req.headers.get('CF-Connecting-IP')||'local');
-      if(path==='/api/office/challenge'&&req.method==='GET')return json({configured:true,salt:credential.salt,iterations:credential.iterations});
+      if(path==='/api/office/challenge'&&req.method==='GET')return json({configured:true,salt:credential.salt,iterations:credential.iterations,recoveryConnected:false});
       if(path==='/api/office/session'&&req.method==='GET')return json({unlocked:actor.role==='editor',expiresAt:actor.officeExpiresAt});
       if(path==='/api/office/unlock'&&req.method==='POST'){
         this.rate('login:'+ip,5,300000);this.rate('login:global',100,300000);
@@ -177,7 +201,12 @@ export class Newsroom {
         this.sql.exec('DELETE FROM sessions WHERE token=?',await digest(cookie(req,'newsroom_office')));
         return json({},200,{'Set-Cookie':setCookie('newsroom_office','',0,req)});
       }
-      if(path.startsWith('/api/office/'))throw fail('This office action is not available.',404);
+      if(path.startsWith('/api/office/')){
+        const action=path.slice('/api/office/'.length);
+        if(!['settings','pair','reset-request','reset-challenge','reset-complete','change-email','confirm-email','backup-now','retry-backup','enable-backups'].includes(action))throw fail('This office action is not available.',404);
+        if(req.method!==(action==='settings'?'GET':'POST'))throw fail('Method not allowed.',405);
+        return json(await this.admin.office(action,req.method==='POST'?await input(req,4096):{},actor,ip,url.origin));
+      }
       if(path==='/api/session'&&req.method==='GET'){
         let header={};
         if(!actor.sub){this.rate('session:'+ip,100,3600000);actor.sub=random();const value=actor.sub+'.'+(Date.now()+30*DAY);header={'Set-Cookie':setCookie('newsroom_contributor',value+'.'+await this.sign(value),30*DAY/1000,req)};}
@@ -196,6 +225,8 @@ export class Newsroom {
         return json({imported:this.importRecords((await input(req,16*MB)).records,actor)});
       }
       const record=path.match(/^\/api\/records\/([a-zA-Z0-9_-]{1,100})$/);
+      const deletion=path.match(/^\/api\/records\/([a-zA-Z0-9_-]{1,100})\/delete$/);
+      if(deletion&&req.method==='POST')return json(this.deleteRecord(deletion[1],(await input(req,2048)).version,actor));
       if(record&&req.method==='GET'){const row=this.record(record[1]);if(!row||!canReadRecord(row,actor))throw fail('This submission is not available.',404);return json({record:recordForUser(row,actor)});}
       const image=path.match(/^\/api\/(uploads|images)\/([a-zA-Z0-9_-]{1,100})\/([a-zA-Z0-9_-]{1,100})$/);
       if(image&&image[1]==='uploads'&&req.method==='POST')return await this.upload(req,image[2],image[3],actor,ip);
