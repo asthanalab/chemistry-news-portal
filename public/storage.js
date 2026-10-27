@@ -46,16 +46,28 @@ async function localOfficeRequest(action,payload){
 }
 export async function officeChallenge(){return config.mode!=='google'?localOfficeRequest('challenge'):googleRequest('officeChallenge');}
 export async function requestOfficePasswordChange(){
+  if(config.mode==='cloudflare')return localOfficeRequest('reset-request',{});
   if(config.mode!=='google')throw new Error('Password recovery email is not configured. Contact the portal administrator. No email has been sent.');
   return googleRequest('officeResetRequest');
 }
 export async function officeResetChallenge(resetToken){
+  if(config.mode==='cloudflare')return localOfficeRequest('reset-challenge',{resetToken});
   if(config.mode!=='google')throw new Error('Open the password-change link on the connected department portal.');
   return googleRequest('officeResetChallenge',{resetToken});
 }
 export async function completeOfficePasswordChange(resetToken,password){
   const challenge=await officeResetChallenge(resetToken),proof=await passwordProof(password,challenge);
+  if(config.mode==='cloudflare')return localOfficeRequest('reset-complete',{resetToken,proof});
   return googleRequest('officeResetComplete',{resetToken,proof});
+}
+export async function deleteSubmission(record){
+  if(!isOffice(session))throw new Error('Only the office can delete news.');
+  if(!['server','cloudflare'].includes(config.mode))throw new Error('Delete is available on the hosted portal and server preview.');
+  return portalRequest('records/'+encodeURIComponent(record.id)+'/delete',{version:record.version});
+}
+export async function administration(action='settings',data){
+  if(config.mode!=='cloudflare')return {connected:false,preview:true};
+  return portalRequest('office/'+action,data);
 }
 export async function unlockOffice(password,setup=false){
   const challenge=await officeChallenge();
