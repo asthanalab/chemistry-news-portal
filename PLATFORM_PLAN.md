@@ -61,3 +61,7 @@ Daily checks run on Google servers around 9–10 a.m. Central. At 209 MB of port
 The script creates per-record restorable JSON files plus a manifest in dated subfolders. Missing, shared, full or inaccessible Drive storage stops cleanup and reports an office-only error. No emails are sent. A removed root folder is not silently recreated by the daily check. No paid fallback is permitted.
 
 The implementation is tested, deployed and activated after a verified initial backup and isolated restore of all four current records and two images. See PROJECT_NOTES.md for the handoff. Microsoft registration was blocked and that approach is now historical.
+
+## October 27 security revision
+
+Current-password change in Office settings revokes every office session. Forgotten-password recovery uses Google sign-in restricted to `ayushasthana15@gmail.com`, with only identity and email-address scopes. It does not request Gmail, Drive or offline access and sends no email. Google must verify the administrator before a short-lived single-use reset capability is issued. The daily private Drive backup and cleanup rule remain separate and unchanged. The user approved the identity setup and live update; activation evidence belongs in PROJECT_NOTES.md.

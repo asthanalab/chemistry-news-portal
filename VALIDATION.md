@@ -1,3 +1,17 @@
+# Current security verification — October 27, 2026
+
+The final Google-only recovery revision passed **67 isolated automated tests**, including **12 in the actual local Cloudflare runtime**. Checks cover forged office cookies/roles; private record/image/settings/import/delete access; cross-site password actions; current-password proof; concurrent reset use; logout and session revocation; reset expiry; hosting-secret recovery; signed Google identity validation; wrong/unverified accounts; audience/issuer/nonce mismatch; altered/unsigned JWTs; state/browser binding; PKCE; replay; code-exchange failure; exact identity-only scopes and disabled email routes.
+
+The Workers integration test completes an entire signed Google recovery using synthetic keys and credentials through the runtime's native outgoing-request API. It verifies reset completion, old-password rejection, old-session revocation and one-use capabilities. A token-endpoint redirect is rejected without forwarding client credentials. This test covers the native-fetch compatibility issue found and corrected during live verification.
+
+**17 bounded live access checks passed** on final deployment `86224b8b-c4d5-4b7b-996a-080d40e176fd`: anonymous/forged office access, submitted-record isolation, configured identity-only recovery, cross-origin rejection, no public setup, static-file boundaries and browser security headers. A real Google sign-in as the approved administrator reached the new-password form. The fields were left blank: live password replacement was deliberately not performed. The private status confirmed successful Google verification, four existing records, and the unchanged enabled Drive backup connection. Temporary verification office access was locked afterward. No live records were edited or deleted and no email was sent.
+
+JavaScript syntax and the production build passed. Local browser checks confirmed the login barrier for a direct dashboard route, normal login, the current-password form, logout and rejection of a fabricated recovery link. The user approved Google identity-only setup and deployment. Google requested only the account email address, with no Gmail or Drive scope. The mail-sender prototype is superseded and is not part of the active application. Private receipts and sign-in screenshots are ignored under `.local/`.
+
+This is a bounded application review, not a guarantee against every attack. The unchanged existing password should be replaced privately with a strong unique passphrase. Protect the approved recovery Google account as well.
+
+The results below are historical unless explicitly dated as this revision.
+
 # Validation history
 
 Current status as of October 27, 2026: the full local suite passed **55 tests**, and the upload/deletion/Drive-only retention implementation is deployed as Cloudflare version `4573f7c7-4e78-4674-b35b-1a2f87dac970`. Google Drive-only authorization, private root folder, verified initial backup and automatic-cleanup activation are complete. No Gmail access, email-sending scope, real email, or live deletion was used.

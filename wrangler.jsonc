@@ -9,5 +9,5 @@
   "durable_objects": { "bindings": [{ "name": "PORTAL", "class_name": "Newsroom" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Newsroom"] }],
   "observability": { "enabled": false },
-  "vars": { "MAX_STORAGE_BYTES": "268435456", "MAX_RECORDS": "1000" }
+  "vars": { "MAX_STORAGE_BYTES": "268435456", "MAX_RECORDS": "1000", "PORTAL_RECOVERY_GOOGLE_EMAIL": "ayushasthana15@gmail.com", "PORTAL_ORIGIN": "https://chemistry-news-portal.chemistry-newsroom.workers.dev" }
 }

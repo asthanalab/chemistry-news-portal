@@ -8,7 +8,7 @@ A private departmental news intake and review portal. Contributors need only the
 
 Start with [PROJECT_NOTES.md](PROJECT_NOTES.md) for current status, decisions, hosting locations, pending work, and the latest handoff. [PLATFORM_PLAN.md](PLATFORM_PLAN.md) describes the form and architecture; [VALIDATION.md](VALIDATION.md) preserves test and deployment evidence. [MICROSOFT_SETUP.md](MICROSOFT_SETUP.md) records the university app-registration blocker and proposed setup. [AGENTS.md](AGENTS.md) records instructions for keeping these notes current locally and on GitHub.
 
-The live header is **UND Department of Chemistry**. Private Google Drive backups are selected, with **no Gmail or email-sending access**. The daily rule is enabled after a verified initial backup and isolated restore; see project notes for the live status. No paid service is authorized.
+The live header is **UND Department of Chemistry**. Private Google Drive backups are selected, with **no inbox access or email permission in the backup project**. The daily rule is enabled after a verified initial backup and isolated restore; see project notes for the live status. No paid service is authorized.
 
 ## Run the local preview
 
@@ -39,7 +39,7 @@ The password is checked by the server using a unique salt and 600,000 PBKDF2-SHA
 
 This checkout retains the previously configured office password. On a fresh local installation, the first office visit offers one-time password setup. `node configure-office-password.mjs` is an alternative that creates a password and displays it once; it does not replace an existing credential.
 
-**Email access is disabled by request.** The portal does not read Gmail or send any emails, including password resets. The existing office password continues to work. A hosting-account administrator can rotate the private credential without connecting an inbox. Google Drive backup authorization does not grant Gmail access.
+**Password changes and recovery.** Office settings provide a form requiring the current password and a live office session. The form asks for a new passphrase of at least 12 characters. All office sessions and pending recovery credentials are revoked on change. The browser derives the password proof; the server stores only its salted verifier. Forgotten-password recovery uses **Google sign-in restricted to the approved administrator account**, with only identity and email-address scopes. It requests no Gmail reading/sending, Drive or offline access, and sends no email. See [Google recovery setup](GOOGLE_RECOVERY_SETUP.md) and current activation status in project notes.
 
 Each office review has a **Delete news item** control. It names the item and asks for confirmation before permanently deleting that news item and its live attachments. Existing downloaded/Drive backups are retained. Stale versions cannot delete a newer edit.
 
@@ -63,7 +63,7 @@ This small-department preview uses a single-process JSON store, capped at 1,000 
 
 The update recovers an existing tab's own saved drafts into server storage. On the first office unlock, it imports earlier browser-only preview records, keeping their references, dates, images, and review history. Original browser copies remain intact. Existing IDs are skipped. Older drafts with no matching active contributor remain available to the office. **Import earlier browser preview records** in Office settings can retry recovery. Fictional records remain labeled and can be hidden.
 
-The earlier IndexedDB and Google adapters are retained as inactive legacy code for reference. They are not used in server mode, and no Google scripts are loaded or requests sent to Google.
+The earlier IndexedDB and Google submission adapters are retained as inactive legacy code for reference. They are not used in server mode. Ordinary submissions do not load Google scripts or send news to Google. Administrator recovery redirects to Google for identity verification; the separately connected Drive script handles private backups.
 
 ## Hosting and cost
 
@@ -71,7 +71,7 @@ Source code is public at [asthanalab/chemistry-news-portal](https://github.com/a
 
 The hosted deployment uses a Cloudflare Worker for the interface and API on the same HTTPS origin, with a private SQLite Durable Object for records and image chunks. Contributor and office cookies are Secure, HttpOnly, and SameSite=Strict in production. Image requests enforce the same access rules as the inbox. Public first-time password setup is disabled; the administrator configures a password verifier as a Worker secret.
 
-Use **Workers Free** only. Do not add billing, upgrade to a paid plan, or enable paid resources. Free service quotas stop requests when exhausted; this app never purchases capacity. The app additionally caps stored content at 256 MB, record metadata at 16 MB, and records at 1,000. Images are limited to 10 MB each and 30 MB per submission. Orphaned uploads from interrupted forms can consume storage, so the office should monitor capacity. No email permission, analytics, paid image service, or R2 bucket is configured. The optional private Drive backup script runs daily on Google’s servers, using only its own Drive files, external requests and trigger permissions.
+Use **Workers Free** only. Do not add billing, upgrade to a paid plan, or enable paid resources. Free service quotas stop requests when exhausted; this app never purchases capacity. The app additionally caps stored content at 256 MB, record metadata at 16 MB, and records at 1,000. Images are limited to 10 MB each and 30 MB per submission. Orphaned uploads from interrupted forms can consume storage, so the office should monitor capacity. No analytics, paid image service, or R2 bucket is configured. No email permission is used. Google sign-in verifies only the recovery administrator; news and backups are never emailed. The optional private Drive backup script runs daily on Google’s servers, using only its own Drive files, external requests and trigger permissions.
 
 Cloudflare may change its plans in the future; this package cannot guarantee perpetual third-party hosting. Review [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [Durable Objects Free limits](https://developers.cloudflare.com/durable-objects/platform/pricing/) before enabling an account. GitHub Pages provides the public entry link and redirects to the working HTTPS portal. The form and private API share the Cloudflare origin so cookies and images remain protected.
 
@@ -89,7 +89,7 @@ Before sharing the link, configure the existing local office credential as the s
 
 For a Cloudflare-runtime preview, put that credential in an ignored .dev.vars file, run pnpm build, then pnpm preview:cloudflare. This uses separate local test storage and does not upload earlier records. Backups can be imported explicitly by the office once the hosted portal is configured; existing IDs are skipped. Image files transfer first, then metadata imports commit atomically. A failed metadata import can leave private, unreferenced image uploads.
 
-Email-based password recovery is disabled by request. To rotate access without email, the account administrator replaces the credential secret; existing office sessions then become invalid.
+A hosting administrator can recover access by replacing OFFICE_CREDENTIAL with a newly salted credential. This overrides an in-app password change and invalidates its sessions and pending links. Never upload credentials to GitHub. Google recovery requires its own identity client. Drive backup authorization does not enable recovery.
 
 ## Files and checks
 
@@ -103,6 +103,8 @@ Email-based password recovery is disabled by request. To rotate access without e
 | `tests/` | Access controls, persistence, validation, concurrency, exports, and legacy regression checks |
 | `google-backend/` | Historical inactive integration; do not deploy its email features |
 | `google-automation/` | Current Drive-only backup script and setup guide |
+| `cloudflare/security.mjs` | Current-password changes and single-use password recovery |
+| `cloudflare/google-recovery.mjs` | Administrator-only Google identity verification |
 | `cloudflare/automation.mjs` | Signed backup exchange, verification and latest-news retention |
 
 Install development dependencies, then run pnpm test. Cloudflare tests use the actual local Workers runtime. Some integration tests open temporary loopback ports. Test records are synthetic and isolated from the preview's data. Tests do not send emails.

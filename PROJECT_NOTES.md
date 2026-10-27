@@ -41,14 +41,14 @@ The repository belongs to **asthanalab**. A separately connected GitHub account 
 
 ## Current backup choice and setup status
 
-The latest explicit choice is **private Google Drive backups with no Gmail access and no email-sending permission**, replacing both Microsoft and earlier Google email proposals. The user approved the reduced Drive-only permissions on October 27. Gmail ownership means the Google account owns the Drive folder; backups are not emails.
+The backup choice is **private Google Drive backups with no Gmail access and no email-sending permission in that project**, replacing Microsoft. The final October 27 recovery choice is Google identity verification for the approved administrator account, replacing the proposed mail sender. No emails are authorized. The user approved the reduced Drive-only permissions on October 27. Gmail ownership means the Google account owns the Drive folder; backups are not emails.
 
 | Item | Current setting |
 | --- | --- |
 | Drive account | Existing Google account `ayushasthana15@gmail.com` |
 | Backup destination | Private **UND Chemistry News Backups** folder at My Drive root |
-| Email | Disabled entirely: no Gmail reading, no sending, no backup alerts, no password-reset emails |
-| Office password | Existing credential remains active; hosting administrator can rotate it without Gmail |
+| Email | No reading or sending. Google sign-in recovery is identity-only; the UND address remains the administrator contact |
+| Office password | Existing credential preserved; current-password change form implemented. Hosting-secret rotation remains a recovery path |
 | Schedule | Daily, approximately 9–10 a.m. America/Chicago, executed by Google servers |
 | Trigger | Portal content at or above 209 MB (209 MiB in the existing interface convention) |
 | Retention | Keep roughly the newest 50 MB of whole submitted news items, plus protected drafts and newer edits |
@@ -81,7 +81,7 @@ A first verification backup sends no email and deletes nothing. Large active job
 - Keep submissions and attachments private; a public source repository is not a public news feed.
 - Keep the simple design and account-free contributor workflow.
 - The office inbox is the main output; Excel is optional.
-- Latest instruction: no Gmail read permission and no email-sending permission. Do not send any portal emails, including backups or password resets.
+- Latest instruction: no Gmail read or send permission. Use identity-only Google sign-in restricted to `ayushasthana15@gmail.com` for forgotten-password recovery. All portal emails remain disabled.
 - Use private Google Drive backups under the existing Google account. Keep the root folder visible at the top of My Drive. Microsoft/OneDrive and email plans are superseded.
 - Keep project decisions, setup notes, validation, and remaining work in this folder and GitHub. Never publish passwords, password verifiers, OAuth tokens, session cookies, private submissions, backups, or sign-in screenshots.
 
@@ -112,4 +112,18 @@ The Drive folder’s parent was confirmed to be the account’s My Drive root. T
 
 ## October 27 footer wording correction
 
-Corrected the footer to **Private departmental submissions. AI generated tool.** JavaScript syntax and the production asset build passed, and the exact wording was verified in the live browser. Current production deployment: `39dec5ce-5d7c-4497-93ff-0fcbc6c5c4f3`. Only the static app.js asset changed. The prior 55-test result remains historical; the full suite was not rerun for this text-only edit.
+Corrected the footer to **Private departmental submissions. AI generated tool.** JavaScript syntax and the production asset build passed, and the exact wording was verified in the live browser. Production deployment at that text-only checkpoint: `39dec5ce-5d7c-4497-93ff-0fcbc6c5c4f3`. Only the static app.js asset changed. The prior 55-test result remains historical; the full suite was not rerun for this text-only edit.
+
+## October 27 security review and Google recovery revision
+
+The final user choice is current-password change plus Google-based forgotten-password recovery restricted to **ayushasthana15@gmail.com**. The UND address **ayush.asthana@und.edu** remains the department administrator contact. No Gmail read/send permission or email transport is used. The unactivated email-sender proposal was retained only in ignored local scratch and removed from the application.
+
+The final revised full suite passed **67 tests**, including 12 tests in the actual local Cloudflare runtime and signed Google token verification using JOSE. Seventeen bounded access checks passed against the final live deployment. A real sign-in with the approved Google account reached the new-password form; the fields were left blank and the existing password was not changed. Password replacement, old-session revocation and single-use enforcement were tested with isolated synthetic credentials. No tested route granted unauthorized office data access. This is a bounded application review, not a guarantee against every attack. The existing password is unchanged and should be replaced privately with a strong unique passphrase.
+
+The new code revokes all office sessions when a password changes, rejects concurrent token reuse, rechecks office access after asynchronous operations, and lets a hosting-secret rotation override an in-app credential. Recovery verifies Google's signature, issuer, client audience, expiry, nonce, verified email and exact approved account. The flow uses browser-bound state and PKCE and consumes its callback once. It requests only `openid email`, no offline access, and retains no Google access/refresh token. Successful Google verification grants a 20-minute single-use password-reset capability, not an office session. The private Google subject identifier is pinned on first successful recovery. Another account cannot recover the office even if it can sign in to Google.
+
+A dedicated **UND Chemistry Portal Recovery** Google project is configured under the existing Google account, with no billing or paid service enabled. The user approved the policy, client connection and production update. It remains in external testing mode with only the approved account as a test user. The Google consent screen requested only the account email address. Its client credential is stored in a private Worker secret, never public source. See [setup instructions](GOOGLE_RECOVERY_SETUP.md).
+
+The final production deployment is `86224b8b-c4d5-4b7b-996a-080d40e176fd`. A live compatibility issue in the Google code exchange was fixed and covered by an actual Workers outbound-request regression test; redirects from the token endpoint are rejected. The private diagnostic reports successful verification. All four existing records remain present, and the separate Drive backup connection and daily rule remain enabled. No live records, password or email settings were changed.
+
+Publish this revision’s public source and notes together and verify their GitHub blob hashes. Credentials, private receipts, reset capabilities and account screenshots remain under ignored `.local/`; they are not part of the public update.
