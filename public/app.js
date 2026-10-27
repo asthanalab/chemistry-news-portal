@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { categories, category, statuses, emptySubmission, emptyPublication, publicationEntries, publicationDetailFields, imagePublicationId, removePublication, maxPublications, maxSubmissionImageBytes, validateSubmission, releaseEligible, releaseLabel, safeUrl, escapeHtml as e, uid } from './model.js';
-import { initialize, recoverBrowserPreview, listSubmissions, saveSubmission, loadImages, localImport, session, googleRequest, officeChallenge, unlockOffice, lockOffice, requestOfficePasswordChange, officeResetChallenge, completeOfficePasswordChange, deleteSubmission, administration } from './storage.js';
+import { initialize, recoverBrowserPreview, listSubmissions, saveSubmission, loadImages, localImport, session, googleRequest, officeChallenge, unlockOffice, lockOffice, startGoogleRecovery, officeResetChallenge, completeOfficePasswordChange, changeOfficePassword, deleteSubmission, administration } from './storage.js';
 import {prepareImage} from './images.js';
 import { isOffice, officeRoute } from './access.js';
 import { createWorkbook, zipFiles, dataUrlBytes, download } from './exports.js';
@@ -127,11 +127,11 @@ async function settings(){
   const access=accessVersion,admin=await administration();if(access!==accessVersion)return;
   state.admin=admin;
   shell(`<div class="page-heading"><div><h1>Office settings</h1><p>Manage access and keep a private copy of your records.</p></div></div><div class="settings-grid">
-    <section class="settings-card"><h2>Portal storage</h2><p>${['server','cloudflare'].includes(config.mode)?'Submissions and images are stored privately on the portal server. Review everything in the office inbox; Excel is an optional download. No Google account is required.':config.mode==='local'?'This older preview stores records in this browser. Download a backup before clearing browser data.':'Storage is managed by the configured backend.'}</p><div class="setting-row"><div><strong>Office access</strong><small>The office password protects submissions, images, and exports. Sessions expire after 30 minutes.</small></div><button class="text-button" data-action="change-office-password">Change password</button></div><div class="setting-row"><div><strong>Email access</strong><small>No Gmail access or email-sending permission. Email-based password recovery is disabled.</small></div><span class="off-badge">Off</span></div></section>
+    <section class="settings-card"><h2>Portal storage</h2><p>${['server','cloudflare'].includes(config.mode)?'Submissions and images are stored privately on the portal server. Review everything in the office inbox; Excel is an optional download. No Google account is required.':config.mode==='local'?'This older preview stores records in this browser. Download a backup before clearing browser data.':'Storage is managed by the configured backend.'}</p><div class="setting-row"><div><strong>Office access</strong><small>The office password protects submissions, images, and exports. Sessions expire after 30 minutes.</small></div><button class="text-button" data-action="change-office-password">Change password</button></div><div class="setting-row"><div><strong>Password recovery</strong><small>${admin.recoveryConnected?`Only ${e(admin.recoveryAccount)} can recover access with Google. No email is sent and no inbox or Drive permission is requested.`:"Google recovery is awaiting the administrator’s identity-only connection."}</small></div><span class="off-badge">${admin.recoveryConnected?"Connected":"Not connected"}</span></div></section>
     <section class="settings-card"><h2>Backup and restore</h2><p>Download all records and images as a private backup. Importing adds new records and leaves existing records unchanged.</p><div class="settings-buttons"><button class="button primary" data-action="backup">Download backup</button>${config.mode!=='google'?'<button class="button secondary" data-action="import">Import backup</button><input id="backup-input" type="file" accept=".json" hidden>':''}</div><p class="microcopy">Keep backups in a secure location. They include private office notes.</p>${config.mode==='server'?'<p class="microcopy"><button class="text-button" data-action="recover-preview">Import earlier browser preview records</button></p>':''}</section>
     ${config.mode==='cloudflare'?`<section class="settings-card"><h2>Automatic backup</h2><p>${admin.connected?`Silent check: ${e(admin.schedule)}. ${admin.enabled?'At 209 MB, verified backups allow older news to be removed, keeping roughly the newest 50 MB. No emails are sent.':'Automatic cleanup is off until the initial backup is verified.'} Files are saved in a private folder at the top of My Drive.`:'Connect a Google script to save private Drive backups. It has no Gmail or email-sending permission. No paid service is used.'}</p>${admin.usage?`<p>${formatBytes(admin.usage.bytes)} used of ${formatBytes(admin.usage.maxBytes)} · ${admin.usage.records} of ${admin.usage.maxRecords} news items.</p><p class="microcopy">Content trigger: ${formatBytes(admin.usage.thresholdBytes)}. Keeps roughly the newest 50 MB of whole news items. Unfinished drafts and changed records are retained.</p>`:''}${admin.folderId?`<p><a href="https://drive.google.com/drive/folders/${encodeURIComponent(admin.folderId)}" target="_blank" rel="noopener noreferrer">Open backup folder in My Drive</a></p>`:''}${admin.lastCheck?`<p>Last check: ${e(new Date(admin.lastCheck).toLocaleString())}</p>`:''}${admin.lastError?`<p class="field-error" role="alert">${e(admin.lastError)}</p><button class="button secondary" data-action="retry-backup">Retry at next scheduled check</button>`:''}${admin.job?`<p>Latest backup: ${e(admin.job.state)} · ${admin.job.count} items · ${admin.job.deleted} removed from live storage.</p>`:''}<div class="settings-buttons">${admin.connected?''+(!admin.enabled?'<button class="button secondary" data-action="backup-now">Create verification backup</button>':'')+(!admin.enabled&&admin.job?.state==='complete'&&!admin.job.cleanup&&admin.job.count>0?'<button class="button secondary" data-action="enable-backups">Enable automatic cleanup</button>':''):'<button class="button secondary" data-action="pair-google">Get Google connection code</button>'}</div><p class="microcopy">Deleting a Drive backup removes that retained copy. If the backup folder is missing or shared, automatic cleanup stops. The newest whole news items up to 50 MB are kept, along with drafts and any newer edits. Backups remain private in Drive.</p></section>`:''}
     ${state.records.some(r=>r.sample)?`<section class="settings-card"><h2>Sample records</h2><p>Fictional records from the earlier preview are labeled in the inbox and exports.</p><label class="toggle-row"><input type="checkbox" id="show-samples" ${state.showSamples?'checked':''}><span>Show sample records</span></label></section>`:''}
-    <section class="settings-card"><h2>${config.mode==='cloudflare'?'Hosting':'Local preview'}</h2><p>${config.mode==='cloudflare'?'This portal uses Cloudflare Workers Free with private storage. The application accepts up to 1,000 records and 256 MB of stored content. If a service or storage limit is reached, new requests stop until capacity is available. No paid upgrade is configured. No Gmail access, email permission, or automatic emails are configured.':'This portal is running on this computer. Shared department access requires hosting the server at a department address. No external account, paid service, or billing integration is connected.'}</p></section>
+    <section class="settings-card"><h2>${config.mode==='cloudflare'?'Hosting':'Local preview'}</h2><p>${config.mode==='cloudflare'?'This portal uses Cloudflare Workers Free with private storage. The application accepts up to 1,000 records and 256 MB of stored content. If a service or storage limit is reached, new requests stop until capacity is available. No paid upgrade is configured. No inbox access is granted. No emails are sent. Google recovery verifies only the administrator’s identity; it does not read Gmail or Drive.':'This portal is running on this computer. Shared department access requires hosting the server at a department address. No external account, paid service, or billing integration is connected.'}</p></section>
   </div>`);
 }
 
@@ -144,7 +144,7 @@ async function officeAccess(error=''){
   try{challenge=await officeChallenge();}catch(err){error=errorMessage(err);}
   if(access!==accessVersion||route!==location.hash)return;
   const setup=challenge&&!challenge.configured;
-  shell(`<section class="success-card office-login"><h1>${setup?'Set office password':'Office access'}</h1><p>${setup?'Create a password for the department office.':'Enter the office password to view submissions, images, and exports.'}</p>${error?`<p class="field-error" role="alert">${e(error)}</p>`:''}${challenge?`<form id="office-form" data-setup="${setup}"><div class="field"><label for="office-password">${setup?'New office password':'Office password'}</label><input id="office-password" type="password" name="officePassword" autocomplete="${setup?'new-password':'current-password'}" required maxlength="256" ${setup?'minlength="8"':''}></div>${setup?'<div class="field"><label for="office-confirm">Confirm password</label><input id="office-confirm" type="password" name="officeConfirm" autocomplete="new-password" minlength="8" maxlength="256" required></div><p class="microcopy">Use at least 8 characters. Keep this password somewhere safe.</p>':''}<button type="submit" class="button primary">${setup?'Set password and open inbox':'Unlock office'}</button></form>`:''}<p class="microcopy">Office access locks after 30 minutes, or when you choose Lock office.</p><button type="button" class="text-button" data-action="change-office-password">Change password</button><p class="microcopy"><a href="#submit">Return to the submission form</a></p></section>`);
+  shell(`<section class="success-card office-login"><h1>${setup?'Set office password':'Office access'}</h1><p>${setup?'Create a password for the department office.':'Enter the office password to view submissions, images, and exports.'}</p>${error?`<p class="field-error" role="alert">${e(error)}</p>`:''}${challenge?`<form id="office-form" data-setup="${setup}"><div class="field"><label for="office-password">${setup?'New office password':'Office password'}</label><input id="office-password" type="password" name="officePassword" autocomplete="${setup?'new-password':'current-password'}" required maxlength="256" ${setup?'minlength="8"':''}></div>${setup?'<div class="field"><label for="office-confirm">Confirm password</label><input id="office-confirm" type="password" name="officeConfirm" autocomplete="new-password" minlength="8" maxlength="256" required></div><p class="microcopy">Use at least 8 characters. Keep this password somewhere safe.</p>':''}<button type="submit" class="button primary">${setup?'Set password and open inbox':'Unlock office'}</button></form>`:''}<p class="microcopy">Office access locks after 30 minutes, or when you choose Lock office.</p><button type="button" class="text-button" data-action="forgot-office-password">Forgot password?</button><p class="microcopy"><a href="#submit">Return to the submission form</a></p></section>`);
 }
 function renderSignIn(){
   const office=officeRoute(location.hash.slice(1).split('/')[0])||location.hash==='#office'||location.hash.startsWith('#office-reset/');
@@ -153,26 +153,45 @@ function renderSignIn(){
   if(window.google?.accounts?.id)google.accounts.id.renderButton(document.querySelector('#google-signin'),{theme:'outline',size:'large'});
 }
 async function passwordChangeDialog(){
-  const connected=config.mode==='google'||(await officeChallenge()).recoveryConnected;
-  openDialog('Change office password',connected?`<p>A one-use password-change link will be sent to the configured administrator. The current password stays active until the link is used.</p><button class="button primary" data-action="request-password-change">Send password-change email</button>`:`<p>Email-based password recovery is disabled. The hosting-account administrator can arrange a password change without giving the portal Gmail access.</p><p>The current password remains active. No email has been sent.</p><button class="button secondary" data-action="close-dialog">Close</button>`);
+  requireOffice();
+  if(config.mode!=='cloudflare'){openDialog('Change office password','<p>Open the hosted portal to change its office password.</p>');return;}
+  openDialog('Change office password',`<p>Enter the current password, then choose a unique passphrase of at least 12 characters. Every office session will be signed out.</p><form id="office-change-form"><div class="field"><label for="current-office-password">Current password</label><input id="current-office-password" name="currentPassword" type="password" autocomplete="current-password" required maxlength="256"></div><div class="field"><label for="changed-office-password">New password</label><input id="changed-office-password" name="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></div><div class="field"><label for="changed-office-confirm">Confirm new password</label><input id="changed-office-confirm" name="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></div><button class="button primary" type="submit">Change password and sign out</button></form>`);
+}
+async function forgotPasswordDialog(){
+  const connected=config.mode==='cloudflare'&&(await officeChallenge()).recoveryConnected;
+  openDialog('Recover office access',connected?`<p>Continue with the approved administrator Google account, then choose a new office password. You do not need the old password.</p><p>No email is sent. The portal requests only your Google identity and email address, with no inbox or Drive access. <a href="privacy.html" target="_blank" rel="noopener noreferrer">Privacy details</a>.</p><button class="button primary" data-action="google-recovery">Continue with Google</button>`:`<p>Google recovery setup is not complete. Contact the hosting-account administrator for help.</p><p>No email has been sent.</p><button class="button secondary" data-action="close-dialog">Close</button>`);
+}
+function passwordChanged(){
+  resetWorkspace();session.role='contributor';session.officeToken='';session.officeExpiresAt=0;clearTimeout(officeTimer);
+  localStorage.setItem('newsroom-office-locked',crypto.randomUUID());
+}
+async function submitCurrentPasswordChange(form){
+  requireOffice();
+  let current=form.elements.currentPassword.value,next=form.elements.newPassword.value;
+  if(next.length<12||next!==form.elements.confirmPassword.value||next===current){toast('Choose a different password of at least 12 characters and make sure both new passwords match.',true);return;}
+  const button=form.querySelector('button');button.disabled=true;
+  try{await changeOfficePassword(current,next);passwordChanged();history.replaceState(null,'','#office');await officeAccess();toast('Password changed. All office sessions were signed out.');}
+  catch(err){toast(errorMessage(err),true);}
+  finally{current='';next='';form.reset();button.disabled=false;}
 }
 
 async function renderPasswordReset(resetToken){
+  resetWorkspace();const access=accessVersion,route=location.hash;
   state.route='office';
-  shell('<section class="success-card"><h1>Change office password</h1><p>Checking your link…</p></section>');
+  shell('<section class="success-card"><h1>Change office password</h1><p>Checking your recovery session…</p></section>');
   try{
     await officeResetChallenge(resetToken);
-    shell(`<section class="success-card office-login"><h1>Change office password</h1><p>Set the new office password. Existing office sessions will be locked.</p><form id="office-reset-form"><div class="field"><label for="new-office-password">New office password</label><input id="new-office-password" name="officePassword" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div><div class="field"><label for="confirm-office-password">Confirm password</label><input id="confirm-office-password" name="officeConfirm" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div><p class="microcopy">Use at least 8 characters.</p><button class="button primary" type="submit">Save new password</button></form></section>`);
-  }catch(err){shell(`<section class="success-card"><h1>Password change unavailable</h1><p role="alert">${e(errorMessage(err))}</p><a href="#office">Return to office access</a></section>`);}
+    if(access!==accessVersion||route!==location.hash)return;
+    shell(`<section class="success-card office-login"><h1>Change office password</h1><p>Set the new office password. Existing office sessions will be locked.</p><form id="office-reset-form"><div class="field"><label for="new-office-password">New office password</label><input id="new-office-password" name="officePassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" required></div><div class="field"><label for="confirm-office-password">Confirm password</label><input id="confirm-office-password" name="officeConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" required></div><p class="microcopy">Use at least 12 characters.</p><button class="button primary" type="submit">Save new password</button></form></section>`);
+  }catch(err){if(access!==accessVersion||route!==location.hash)return;shell(`<section class="success-card"><h1>Password change unavailable</h1><p role="alert">${e(errorMessage(err))}</p><a href="#office">Return to office access</a></section>`);}
 }
 async function submitPasswordReset(form){
   let password=form.elements.officePassword.value;
-  if(password.length<8||password!==form.elements.officeConfirm.value){toast('Use at least 8 characters and make sure both passwords match.',true);return;}
+  if(password.length<12||password!==form.elements.officeConfirm.value){toast('Use at least 12 characters and make sure both passwords match.',true);return;}
   const button=form.querySelector('button');button.disabled=true;
   try{
     await completeOfficePasswordChange(location.hash.split('/')[1]||'',password);
-    resetWorkspace();session.role='contributor';session.officeToken='';session.officeExpiresAt=0;clearTimeout(officeTimer);
-    localStorage.setItem('newsroom-office-locked',crypto.randomUUID());
+    passwordChanged();
     history.replaceState(null,'','#office');await officeAccess();toast('Password changed. Unlock the office with your new password.');
   }catch(err){toast(errorMessage(err),true);}
   finally{password='';form.reset();button.disabled=false;}
@@ -228,8 +247,9 @@ async function renderRoute(){
   const [route,id]=hash.split('/');state.selected.clear();state.search='';state.filterCategory='all';state.filterStatus='all';state.tab='all';
   if(route==='home'){home();return;}
   if(config.mode==='google'&&!session.token){renderSignIn();return;}
+  if(route==='office-recovery-error'){state.route='office';shell('<section class="success-card"><h1>Recovery not completed</h1><p>Google sign-in could not verify the approved administrator account, or the recovery request expired. Your password has not changed.</p><button class="button primary" data-action="forgot-office-password">Try Google recovery again</button><p><a href="#office">Return to office access</a></p></section>');return;}
   if(route==='office-reset'){await renderPasswordReset(id);return;}
-  if(route==='admin-email'){state.route='office';shell(`<section class="success-card"><h1>Confirm administrator email change</h1><p>Confirm only if you requested or approved this change.</p><button class="button primary" data-action="confirm-admin-email">Confirm change</button></section>`);return;}
+  if(route==='admin-email'){state.route='office';shell('<section class="success-card"><h1>This link is unavailable</h1><p>Contact the hosting administrator to update the recovery email.</p><a href="#office">Return to office access</a></section>');return;}
   if(isEditor()&&Date.now()>=session.officeExpiresAt){await forceOfficeLock();return;}
   if(route==='office'){if(isEditor()){routeTo('dashboard');return;}await officeAccess();window.scrollTo(0,0);return;}
   if(officeRoute(route)&&!isEditor()){state.route='office';await officeAccess();window.scrollTo(0,0);return;}
@@ -388,11 +408,10 @@ async function handleClick(event){
     case'recover-preview':{const count=await recoverBrowserPreview();state.records=await listSubmissions();await settings();toast(`${count} earlier preview records imported. Existing records were kept.`);break;}
     case'sign-out':await signOut();break;
     case'change-office-password':await passwordChangeDialog();break;
-    case'request-password-change':{
-      const button=dialog.querySelector('[data-action="request-password-change"]');button.disabled=true;
-      try{await requestOfficePasswordChange();openDialog('Check the administrator’s email','<p>A one-use password-change link has been sent. It expires in 20 minutes. The current password has not changed.</p><button class="button primary" data-action="close-dialog">Done</button>');}
-      finally{button.disabled=false;}
-      break;
+    case'forgot-office-password':await forgotPasswordDialog();break;
+    case'google-recovery':{
+      const button=dialog.querySelector('[data-action="google-recovery"]');button.disabled=true;
+      try{location.assign(await startGoogleRecovery());}catch(err){button.disabled=false;throw err;}break;
     }
     case'delete-story':{requireOffice();const row=state.records.find(r=>r.id===state.detailId);if(!row)throw new Error('News item unavailable.');state.deleteTarget={id:row.id,version:row.version};openDialog('Delete news item',`<p>Delete <strong>${e(row.headline)}</strong> (${e(row.reference)}) and its attachments from this portal?</p><p>This cannot be undone here. Existing downloaded or Drive backups are kept. Download a backup first if you need a copy.</p><div class="settings-buttons"><button class="button secondary" data-action="close-dialog">Cancel</button><button class="button primary" data-action="confirm-delete-story">Delete this news item</button></div>`);break;}
     case'confirm-delete-story':{requireOffice();const target=state.deleteTarget;if(!target)throw new Error('Choose the news item again.');await deleteSubmission(target);state.records=state.records.filter(r=>r.id!==target.id);if(state.form?.id===target.id)state.form=null;state.deleteTarget=null;dialog.close();routeTo('dashboard');toast('News item deleted. Existing backups were kept.');break;}
@@ -418,7 +437,7 @@ async function handleClick(event){
   }
 }
 document.addEventListener('click',event=>handleClick(event).catch(err=>toast(errorMessage(err),true)));
-document.addEventListener('submit',event=>{if(event.target.id==='news-form'){event.preventDefault();advance().catch(err=>toast(errorMessage(err),true));}else if(event.target.id==='office-form'){event.preventDefault();submitOffice(event.target).catch(err=>toast(errorMessage(err),true));}else if(event.target.id==='office-reset-form'){event.preventDefault();submitPasswordReset(event.target).catch(err=>toast(errorMessage(err),true));}});
+document.addEventListener('submit',event=>{if(event.target.id==='news-form'){event.preventDefault();advance().catch(err=>toast(errorMessage(err),true));}else if(event.target.id==='office-form'){event.preventDefault();submitOffice(event.target).catch(err=>toast(errorMessage(err),true));}else if(event.target.id==='office-change-form'){event.preventDefault();submitCurrentPasswordChange(event.target).catch(err=>toast(errorMessage(err),true));}else if(event.target.id==='office-reset-form'){event.preventDefault();submitPasswordReset(event.target).catch(err=>toast(errorMessage(err),true));}});
 document.addEventListener('input',event=>{
   const target=event.target;
   if(target.id==='search'){state.search=target.value;state.selected.clear();renderTable();return;}

@@ -45,10 +45,11 @@ async function localOfficeRequest(action,payload){
   const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Office access is unavailable.');return data;
 }
 export async function officeChallenge(){return config.mode!=='google'?localOfficeRequest('challenge'):googleRequest('officeChallenge');}
-export async function requestOfficePasswordChange(){
-  if(config.mode==='cloudflare')return localOfficeRequest('reset-request',{});
-  if(config.mode!=='google')throw new Error('Password recovery email is not configured. Contact the portal administrator. No email has been sent.');
-  return googleRequest('officeResetRequest');
+export async function startGoogleRecovery(){
+  if(config.mode!=='cloudflare')throw new Error('Open the hosted portal to recover office access.');
+  const result=await localOfficeRequest('google-start',{}),url=new URL(result.url);
+  if(url.origin!=='https://accounts.google.com'||url.pathname!=='/o/oauth2/v2/auth')throw new Error('Invalid recovery destination.');
+  return url.href;
 }
 export async function officeResetChallenge(resetToken){
   if(config.mode==='cloudflare')return localOfficeRequest('reset-challenge',{resetToken});
@@ -59,6 +60,13 @@ export async function completeOfficePasswordChange(resetToken,password){
   const challenge=await officeResetChallenge(resetToken),proof=await passwordProof(password,challenge);
   if(config.mode==='cloudflare')return localOfficeRequest('reset-complete',{resetToken,proof});
   return googleRequest('officeResetComplete',{resetToken,proof});
+}
+export async function changeOfficePassword(currentPassword,newPassword){
+  if(config.mode!=='cloudflare')throw new Error('Password changes are available on the hosted portal.');
+  const currentProof=await passwordProof(currentPassword,await officeChallenge());
+  const challenge=await localOfficeRequest('change-begin',{currentProof});
+  const proof=await passwordProof(newPassword,challenge);
+  return localOfficeRequest('change-complete',{changeToken:challenge.changeToken,proof});
 }
 export async function deleteSubmission(record){
   if(!isOffice(session))throw new Error('Only the office can delete news.');
